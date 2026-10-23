@@ -1,0 +1,18 @@
+{
+  "checkedOn": "2026-10-23",
+  "note": "Source contracts inspected; not a claim of live service validation or runtime version enforcement. Install matching backend versions/revisions yourself.",
+  "teams": {
+    "repository": "https://github.com/nakasyou/teams-api",
+    "revision": "04721b476a200e71e0da8d4958e27385d4787e7b",
+    "sourcePackageVersion": "0.2.1",
+    "binary": "teams",
+    "contractFiles": ["src/cli/args.ts", "src/cli/commands.ts", "src/cli/output.ts", "src/rest/routes/channels.ts", "src/types/teams.ts"]
+  },
+  "slack": {
+    "repository": "https://github.com/osodevops/slack-cli",
+    "revision": "66c0f26492cb049ea287f6463d8a19eb97ec7cb9",
+    "sourcePackageVersion": "0.2.0",
+    "binary": "slk",
+    "contractFiles": ["src/cli/mod.rs", "src/cli/api.rs", "src/cli/auth.rs", "src/cli/helpers.rs", "src/cli/messages.rs"]
+  }
+}

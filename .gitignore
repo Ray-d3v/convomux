@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+*.tgz
+.env
+.env.*
+!.env.example
+*.log
+config.local.json
+session*.json
+credentials*.json
+.teams-cli/
+.DS_Store
