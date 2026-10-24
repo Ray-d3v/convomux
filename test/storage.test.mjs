@@ -21,9 +21,9 @@ test('secure backend failures preserve fail-closed diagnostics without exposing 
 })
 
 test('patched artifact admission rejects wrong source, patch, target, toolchain and unverified store tests',()=>{
-  const receipt={...secureSlkContract,target:'win32-x64',triple:'x86_64-pc-windows-msvc',binary:'slk.exe',binarySha256:'a'.repeat(64),rustc:'rustc 1.98.0 (synthetic)',repository:'Ray-d3v/convomux',sourceCommit:'1'.repeat(40),mockStorageTestsPassed:true,nativeHelpVersionPassed:true,nativeVaultOrRealAccountsAccessed:false,persistentOsStoreBuild:true,build:{locked:true,release:true,lto:'thin',codegenUnits:16,incremental:false,pathRemapping:'/cmx-source'}}
+  const receipt={...secureSlkContract,target:'win32-x64',triple:'x86_64-pc-windows-msvc',binary:'slk.exe',binarySha256:'a'.repeat(64),rustc:'rustc 1.98.0 (synthetic)',repository:'Ray-d3v/convomux',sourceCommit:'1'.repeat(40),mockStorageTestsPassed:true,mockStorageTestCount:1,mockStorageTestName:"auth::keyring::cmx_secure_tests::cmx_secure_storage_and_requested_profile_fail_closed",mockStorageProofSha256:"b".repeat(64),nativeHelpVersionPassed:true,nativeVaultOrRealAccountsAccessed:false,persistentOsStoreBuild:true,build:{locked:true,release:true,lto:'thin',codegenUnits:16,incremental:false,pathRemapping:'/cmx-source'}}
   assert.equal(validateSecureBuild(receipt,'win32-x64').binarySha256,receipt.binarySha256)
-  for(const changes of [{upstreamCommit:'0'.repeat(40)},{patchSha256:'0'.repeat(64)},{triple:'aarch64-apple-darwin'},{rustc:'rustc unverified'},{mockStorageTestsPassed:false},{nativeHelpVersionPassed:false},{nativeVaultOrRealAccountsAccessed:true},{persistentOsStoreBuild:false},{patchedFiles:{}},{build:{...receipt.build,locked:false}}]){
+  for(const changes of [{mockStorageTestCount:0},{upstreamCommit:'0'.repeat(40)},{patchSha256:'0'.repeat(64)},{triple:'aarch64-apple-darwin'},{rustc:'rustc unverified'},{mockStorageTestsPassed:false},{nativeHelpVersionPassed:false},{nativeVaultOrRealAccountsAccessed:true},{persistentOsStoreBuild:false},{patchedFiles:{}},{build:{...receipt.build,locked:false}}]){
     assert.throws(()=>validateSecureBuild({...receipt,...changes},'win32-x64'),e=>e.code==='CREDENTIAL_STORAGE_BLOCKED')
   }
 })

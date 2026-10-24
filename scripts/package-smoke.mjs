@@ -44,6 +44,7 @@ assert.equal(secureManifest.schemaVersion,1)
 assert.equal(sha256(entries.get('package/patches/slk/secure-storage.patch')),secureSlkContract.patchSha256)
 for (const [target, artifact] of Object.entries(contracts.slack.artifacts)) {
   const expected=target.startsWith('linux-')?artifact.binarySha256:validateSecureBuild(secureManifest.builds[target],target).binarySha256
+  if(!target.startsWith('linux-'))assert.equal(sha256(entries.get(`package/vendor/slk/${target}/mock-test-proof.json`)),secureManifest.builds[target].mockStorageProofSha256)
   assert.equal(sha256(entries.get(`package/vendor/slk/${target}/${artifact.binary}`)), expected, `Packaged binary: ${target}`)
   if(!target.startsWith('linux-'))for(const marker of ['CMX_SECURE_STORAGE','CMX_SECURE_PROFILE_UNAVAILABLE'])assert.ok(entries.get(`package/vendor/slk/${target}/${artifact.binary}`).includes(Buffer.from(marker)))
   if (!target.startsWith('win32')) assert.ok(modes.get(`package/vendor/slk/${target}/${artifact.binary}`)&0o111,`Unix executable mode missing: ${target}; use the Linux CI artifact`)

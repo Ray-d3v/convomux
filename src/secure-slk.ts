@@ -16,8 +16,9 @@ const vendor = fileURLToPath(new URL('../vendor/slk/', import.meta.url))
 const blocked = (): never => fail('CREDENTIAL_STORAGE_BLOCKED', 'Slack login and reads require the verified patched backend with persistent OS storage and strict requested-profile failure. No unverified executable override is accepted. Existing credentials were not accessed or changed.')
 
 export interface SecureBuild {
-  target: string; binary: string; binarySha256: string
+  target: string; triple: string; binary: string; binarySha256: string
   patchedVersion: string; patchSha256: string; persistentOsStoreBuild: boolean
+  mockStorageProofSha256: string
 }
 export function validateSecureBuild(raw: unknown, target: string): SecureBuild {
   const value = record(raw), contract = secureSlkContract
@@ -28,6 +29,7 @@ export function validateSecureBuild(raw: unknown, target: string): SecureBuild {
       value.rustToolchain !== contract.rustToolchain || typeof value.rustc !== 'string' || !value.rustc.startsWith(`rustc ${contract.rustToolchain} `) ||
       value.repository !== 'Ray-d3v/convomux' || typeof value.sourceCommit !== 'string' || !/^[a-f0-9]{40}$/u.test(value.sourceCommit) ||
       value.mockStorageTestsPassed !== true || value.nativeHelpVersionPassed !== true || value.nativeVaultOrRealAccountsAccessed !== false ||
+      value.mockStorageTestCount !== 1 || value.mockStorageTestName !== 'auth::keyring::cmx_secure_tests::cmx_secure_storage_and_requested_profile_fail_closed' || typeof value.mockStorageProofSha256 !== 'string' || !/^[a-f0-9]{64}$/u.test(value.mockStorageProofSha256) ||
       value.persistentOsStoreBuild !== contract.persistentTargets.includes(target) ||
       typeof value.binarySha256 !== 'string' || !/^[a-f0-9]{64}$/u.test(value.binarySha256)) return blocked()
   const build = record(value.build)
@@ -43,6 +45,10 @@ export async function packagedSecureBuild(target: string): Promise<SecureBuild> 
     if (!secureSlkContract.persistentTargets.includes(target)) return fail('UNSUPPORTED', 'Slack authentication is unavailable on this OS: the pinned Linux kernel keyring does not provide secure persistent storage. No plaintext fallback or other account is attempted.')
     const build = validateSecureBuild(record(manifest.builds)[target], target)
     if (!build.persistentOsStoreBuild) return blocked()
+    const proofBytes = await readFile(join(vendor, target, 'mock-test-proof.json'))
+    if (createHash('sha256').update(proofBytes).digest('hex') !== build.mockStorageProofSha256) return blocked()
+    const proof = record(JSON.parse(proofBytes.toString('utf8')))
+    if (proof.name !== 'auth::keyring::cmx_secure_tests::cmx_secure_storage_and_requested_profile_fail_closed' || proof.target !== build.triple || proof.passed !== 1 || proof.failed !== 0 || proof.ignored !== 0 || proof.patchSha256 !== secureSlkContract.patchSha256 || proof.sourceArchiveSha256 !== secureSlkContract.sourceArchiveSha256 || proof.nativeVaultOrRealAccountsAccessed !== false) return blocked()
     const bytes = await readFile(join(vendor, target, build.binary))
     if (bytes.length > 50 * 1024 * 1024 || createHash('sha256').update(bytes).digest('hex') !== build.binarySha256) return blocked()
     return build

@@ -21,7 +21,7 @@ try {
       try {
         const data = JSON.parse(body) as { latest?: unknown }
         const previous = JSON.parse(readFileSync(path, 'utf8')) as UpdateCache
-        if (previous.checkedAt === checkedAt && newerStable(data.latest)) writeUpdateCache(path, { checkedAt, latest: data.latest })
+        if (previous.checkedAt === checkedAt && newerStable(data.latest, packageInfo.version)) writeUpdateCache(path, { checkedAt, latest: data.latest })
       } catch { /* Invalid response, unpublished package or unwritable cache. */ }
     })
   })

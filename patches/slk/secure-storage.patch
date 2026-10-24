@@ -46,7 +46,7 @@ index f14c3d9..b542397 100644
   "aes",
   "argon2",
 diff --git a/src/auth/keyring.rs b/src/auth/keyring.rs
-index e14a820..780c45c 100644
+index e14a820..8b2ebf4 100644
 --- a/src/auth/keyring.rs
 +++ b/src/auth/keyring.rs
 @@ -1,6 +1,5 @@
@@ -135,7 +135,7 @@ index e14a820..780c45c 100644
      }
  
      /// Delete a credential from all storage locations.
-@@ -107,38 +89,67 @@ impl CredentialStore {
+@@ -107,38 +89,76 @@ impl CredentialStore {
          Ok(dir.join(format!("cred_{workspace}.json")))
      }
  
@@ -210,6 +210,7 @@ index e14a820..780c45c 100644
 +        let legacy = directory.path().join("cred_requested-synthetic.json");
 +        std::fs::write(&legacy, synthetic_json()).unwrap();
 +        std::fs::write(directory.path().join("profiles.toml"), "active = \"active-synthetic\"\nworkspaces = {}\n").unwrap();
++        assert_eq!(crate::config::profiles::ProfileStore::load().unwrap().active.as_deref(), Some("active-synthetic"));
 +        let credential: StoredCredential = serde_json::from_str(&synthetic_json()).unwrap();
 +        for value in [1, 2] {
 +            mode.store(value, Ordering::SeqCst);
@@ -218,10 +219,18 @@ index e14a820..780c45c 100644
          }
 -        Ok(())
 +        mode.store(0, Ordering::SeqCst);
++        if persistent {
++            assert!(CredentialStore::store_credential("write-success-synthetic", &credential).is_ok());
++            assert!(!directory.path().join("cred_write-success-synthetic.json").exists());
++            assert!(matches!(crate::auth::resolve_credentials(None, None, None), Ok(crate::client::Credentials::BearerOnly { token }) if token == "synthetic-only"));
++        } else {
++            assert!(CredentialStore::require_secure_storage().unwrap_err().to_string().contains("CMX_SECURE_STORAGE_UNSUPPORTED"));
++        }
 +        assert!(CredentialStore::load_credential("requested-synthetic").is_err());
 +        assert!(CredentialStore::load_credential("invalid-synthetic").is_err());
 +        calls.lock().unwrap().clear();
-+        assert!(crate::auth::resolve_credentials(None, None, Some("requested-synthetic")).is_err());
++        let error = crate::auth::resolve_credentials(None, None, Some("requested-synthetic")).unwrap_err();
++        assert!(error.to_string().contains(if persistent { "CMX_SECURE_PROFILE_UNAVAILABLE" } else { "CMX_SECURE_STORAGE_UNSUPPORTED" }));
 +        let requested = calls.lock().unwrap().clone();
 +        assert_eq!(requested, if persistent { vec!["requested-synthetic".to_string()] } else { vec![] });
 +        assert_eq!(std::fs::read_to_string(&legacy).unwrap(), synthetic_json());

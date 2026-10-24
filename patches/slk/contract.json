@@ -4,7 +4,7 @@
   "upstreamRelease": "v0.2.0",
   "sourceArchiveSha256": "cb7b4a106b5e2ecf2e7baa6035016ac973a1e99ceea69f47bb3a52dab6b11ecf",
   "patchedVersion": "0.2.0+cmx.1",
-  "patchSha256": "2d1e4ce908af7c2d10d75da7d41007e6ef77422daad4ee2395ce95a36d1b70f0",
+  "patchSha256": "73b7d277655cd1585d5fee3330ec02adfdd1d7d2934cb431364f6bfcb9530586",
   "rustToolchain": "1.98.0",
   "license": "MIT",
   "originalFiles": {
@@ -17,7 +17,7 @@
   "patchedFiles": {
     "Cargo.toml": "a762632acc9a1b61631ae136b9bdb91973053519adac345505a5ac8eb8f33ceb",
     "Cargo.lock": "b6e111f933260f7443fdfc2b533a240d01b4e6b6fc6d36ea42762446760ad920",
-    "src/auth/keyring.rs": "6f71d066213c3035ef5dca2a1098e5b8a2c45156228ebf1a1b4ef14ac6a896c6",
+    "src/auth/keyring.rs": "621ed1330f78b5a711b0306cda805e4e4569e098e9bba6c3dd9024f7e10f579e",
     "src/auth/mod.rs": "71b853833632fa8def77303fffa3f67f1eeb3ea52bd731791cea6f6285b023f0",
     "src/cli/auth.rs": "dd5fe609859fe8376c9dce66b2e7ab3bf2d369e1b43022ac8a20b847af79c76a"
   },

@@ -27,15 +27,16 @@ test('real update worker handles success, unpublished package, invalid data, tim
     const sent = JSON.parse(readFileSync(receipt,'utf8'))
     assert.equal(sent.url,'https://registry.npmjs.org/-/package/@ray-d3v/convomux/dist-tags')
     assert.deepEqual(sent.options.headers,{accept:'application/json'})
+    if(['timeout','oversized'].includes(mode))assert.equal(sent.destroyed,true)
   }
 })
 test('notification boundary gates all activity, caches attempts daily, tolerates failures and writes stderr only', t => {
   const dir = mkdtempSync(join(tmpdir(),'cmx-update-')), previous = { ...process.env }
   const streams = [process.stdin,process.stdout,process.stderr], descriptors = streams.map(s => Object.getOwnPropertyDescriptor(s,'isTTY'))
-  const originalSpawn = childProcess.spawn, originalWrite = process.stderr.write
-  let launches = 0, notices = ''
+  const originalSpawn = childProcess.spawn, originalWrite = process.stderr.write, originalStdout = process.stdout.write
+  let launches = 0, notices = '', stdout = ''
   t.after(() => {
-    childProcess.spawn = originalSpawn; syncBuiltinESMExports(); process.stderr.write = originalWrite
+    childProcess.spawn = originalSpawn; syncBuiltinESMExports(); process.stderr.write = originalWrite; process.stdout.write = originalStdout
     for (const key of Object.keys(process.env)) if (!(key in previous)) delete process.env[key]
     Object.assign(process.env,previous)
     streams.forEach((s,i) => descriptors[i] ? Object.defineProperty(s,'isTTY',descriptors[i]) : delete s.isTTY)
@@ -46,8 +47,10 @@ test('notification boundary gates all activity, caches attempts daily, tolerates
   streams.forEach(s => Object.defineProperty(s,'isTTY',{configurable:true,value:true}))
   childProcess.spawn = () => { launches++; const child = new EventEmitter(); child.unref=()=>{}; return child }; syncBuiltinESMExports()
   process.stderr.write = value => { notices += value; return true }
-  for (const key of ['CI','GITHUB_ACTIONS','NO_UPDATE_NOTIFIER','CMX_NO_UPDATE_NOTIFIER']) { process.env[key]='1'; checkForUpdates([]); delete process.env[key] }
-  checkForUpdates(['doctor','--json']); assert.equal(launches,0)
+  process.stdout.write = value => { stdout += value; return true }
+  for (const key of ['CI','CONTINUOUS_INTEGRATION','BUILD_NUMBER','GITHUB_ACTIONS','TF_BUILD','NO_UPDATE_NOTIFIER','CMX_NO_UPDATE_NOTIFIER']) { process.env[key]='1'; checkForUpdates([]); delete process.env[key] }
+  process.env.NODE_ENV='test';checkForUpdates([]);delete process.env.NODE_ENV
+  for(const option of ['--json','--json=true'])checkForUpdates(['doctor',option]); assert.equal(launches,0)
   for (const stream of streams) { Object.defineProperty(stream,'isTTY',{configurable:true,value:false}); checkForUpdates([]); Object.defineProperty(stream,'isTTY',{configurable:true,value:true}) }
   assert.equal(launches,0)
   assert.throws(() => readFileSync(updateCachePath()))
@@ -61,4 +64,5 @@ test('notification boundary gates all activity, caches attempts daily, tolerates
   // Cache storage failure is also isolated from the command.
   rmSync(join(path,'..'),{recursive:true,force:true}); mkdirSync(join(path,'..')); mkdirSync(path)
   assert.doesNotThrow(() => checkForUpdates([]))
+  assert.equal(stdout,'')
 })

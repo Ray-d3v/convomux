@@ -90,7 +90,7 @@ function accountOptions(src: string, values: Record<string, string | boolean | u
   if (typeof values.executable === 'string') account.executable = resolve(values.executable)
   return account
 }
-export async function dispatch(argv: string[], signal?: AbortSignal): Promise<Result<unknown> | { help: string }> {
+async function dispatch(argv: string[], signal?: AbortSignal): Promise<Result<unknown> | { help: string }> {
   if (!argv.length) return { help: HELP }
   const { values, positionals: args, command } = argumentsFor(argv)
   if (values.help) return { help: HELP }
@@ -183,7 +183,7 @@ export async function dispatch(argv: string[], signal?: AbortSignal): Promise<Re
   }
   return fail('USAGE', 'Unknown command.')
 }
-export function render(value: Result<unknown>, json: boolean): void {
+function render(value: Result<unknown>, json: boolean): void {
   if (json) process.stdout.write(JSON.stringify(value) + '\n')
   else {
     for (const raw of value.data) {
@@ -198,7 +198,7 @@ export function render(value: Result<unknown>, json: boolean): void {
   }
   for (const e of value.errors) process.stderr.write(terminal(`[${e.code}] ${e.source ? e.source + '/' + e.account + ': ' : ''}${e.message}\n`))
 }
-export async function main(argv = process.argv.slice(2)): Promise<void> {
+async function main(argv = process.argv.slice(2)): Promise<void> {
   if (!argv.includes('--storage')) checkForUpdates(argv)
   const controller = new AbortController()
   const abort = (): void => controller.abort()

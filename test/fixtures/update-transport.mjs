@@ -5,19 +5,22 @@ import { EventEmitter } from 'node:events'
 import { writeFileSync } from 'node:fs'
 
 https.get = (url, options, callback) => {
-  writeFileSync(process.env.CMX_TEST_RECEIPT,JSON.stringify({url,options}))
+  const receipt={url,options,destroyed:false}
+  const record=()=>writeFileSync(process.env.CMX_TEST_RECEIPT,JSON.stringify(receipt))
+  record()
   const request = new EventEmitter()
-  request.destroy = () => request.emit('close')
+  request.destroy = () => { receipt.destroyed=true;record();request.emit('close') }
   setImmediate(() => {
     const mode = process.env.CMX_TEST_RESPONSE
     if (mode === 'failure') { request.emit('error',new Error('offline')); request.emit('close'); return }
     if (mode === 'timeout') { request.emit('timeout'); return }
     const response = new EventEmitter(); response.statusCode = mode === '404' ? 404 : 200; response.resume=()=>request.emit('close')
     callback(response)
-    if (response.statusCode === 200) {
-      response.emit('data',Buffer.from(mode === 'invalid' ? '{' : mode === 'oversized' ? 'x'.repeat(65537) : JSON.stringify({latest:'99.0.0'})))
-      response.emit('end'); request.emit('close')
-    }
+    // All statuses can carry a valid body. The worker owns status admission,
+    // JSON validity and size rejection; this fixture does not decide them.
+    response.emit('data',Buffer.from(mode==='invalid'?'{':JSON.stringify({latest:'99.0.0',...(mode==='oversized'?{padding:'x'.repeat(65536)}:{})})))
+    if(!receipt.destroyed)response.emit('end')
+    request.emit('close')
   })
   return request
 }

@@ -11,6 +11,7 @@ if(sha256(await readFile(new URL('../patches/slk/secure-storage.patch',import.me
 for (const [target, artifact] of Object.entries(contracts.slack.artifacts)) {
   const bytes = await readFile(new URL(`../vendor/slk/${target}/${artifact.binary}`, import.meta.url))
   const expected=target.startsWith('linux-')?artifact.binarySha256:validateSecureBuild(secureManifest.builds[target],target).binarySha256
+  if(!target.startsWith('linux-')&&sha256(await readFile(new URL(`../vendor/slk/${target}/mock-test-proof.json`,import.meta.url)))!==secureManifest.builds[target].mockStorageProofSha256)throw Error('Mock test proof missing/corrupt')
   if (!expected || sha256(bytes) !== expected) throw new Error(`Bundled binary missing/corrupt: ${target}`)
 }
 for (const [name, hash] of Object.entries(contracts.licenses)) {

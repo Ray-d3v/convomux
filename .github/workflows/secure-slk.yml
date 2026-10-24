@@ -53,8 +53,9 @@ jobs:
             ~/.cargo/git
             .upstream/slk-target
           key: slk-secure-${{ runner.os }}-${{ matrix.target }}-rust-1.98.0-${{ hashFiles('patches/slk/secure-storage.patch') }}
+          restore-keys: slk-secure-${{ runner.os }}-${{ matrix.target }}-rust-1.98.0-
       - name: Test only synthetic credential stores; never access native vaults
-        run: cargo test --manifest-path .upstream/slk-secure-source/Cargo.toml --target ${{ matrix.triple }} --locked --release --bin slk cmx_secure -- --test-threads=1
+        run: node scripts/test-secure-slk.mjs ${{ matrix.triple }}
       - name: Build a native candidate without install-time compilation
         run: cargo build --manifest-path .upstream/slk-secure-source/Cargo.toml --target ${{ matrix.triple }} --locked --release
       - name: Verify authentication-free help/version and record provenance

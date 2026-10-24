@@ -12,7 +12,7 @@ export function updateCachePath(): string {
   const base = process.platform === 'win32' ? process.env.LOCALAPPDATA : process.env.XDG_CACHE_HOME
   return join(base && isAbsolute(base) ? base : join(homedir(), '.cache'), 'convomux', 'updates.json')
 }
-export function newerStable(latest: unknown, current = packageInfo.version): latest is string {
+export function newerStable(latest: unknown, current: string): latest is string {
   return typeof latest === 'string' && Boolean(semver.valid(latest)) && !semver.prerelease(latest) && Boolean(semver.valid(current)) && semver.gt(latest, current)
 }
 export function writeUpdateCache(path: string, value: UpdateCache): void {
@@ -31,10 +31,10 @@ export function checkForUpdates(argv: string[]): void {
     closeSync(openSync(path + '.lock', 'wx', 0o600)); locked = true
     let cache: UpdateCache = { checkedAt: 0 }
     try { cache = JSON.parse(readFileSync(path, 'utf8')) as UpdateCache } catch { /* First run or invalid cache. */ }
-    if (newerStable(cache.latest)) process.stderr.write(`ConvoMux ${cache.latest} is available (current ${packageInfo.version}). Run npm install -g ${packageInfo.name}@latest\n`)
+    if (newerStable(cache.latest, packageInfo.version)) process.stderr.write(`ConvoMux ${cache.latest} is available (current ${packageInfo.version}). Run npm install -g ${packageInfo.name}@latest\n`)
     if (Number.isFinite(cache.checkedAt) && now - cache.checkedAt < DAY && cache.checkedAt <= now + DAY) return
     // Cache attempts as well as successes, so offline/unpublished installs check at most daily.
-    writeUpdateCache(path, { checkedAt: now, ...(newerStable(cache.latest) ? { latest: cache.latest } : {}) })
+    writeUpdateCache(path, { checkedAt: now, ...(newerStable(cache.latest, packageInfo.version) ? { latest: cache.latest } : {}) })
     const child = spawn(process.execPath, [fileURLToPath(new URL('./update-worker.js', import.meta.url)), String(now)], {
       shell: false, detached: true, windowsHide: true, stdio: 'ignore',
       // Never pass credentials, account state, NODE_OPTIONS or npm authentication to the worker.

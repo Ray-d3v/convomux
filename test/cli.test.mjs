@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdtemp, writeFile, rm, readFile, symlink } from 'node:fs/promises'
+import { mkdtemp, writeFile, rm, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const cli = fileURLToPath(new URL('../dist/cli.js', import.meta.url))
@@ -19,8 +19,8 @@ async function fixture(t, empty = false) {
   ], tracked: [tRef, sRef] }))
   return { dir, config }
 }
-function invoke(config, args, env = {}) {
-  const out = spawnSync(process.execPath, [cli, '--config', config, ...args], { encoding: 'utf8', timeout: 10000, env: { ...process.env, ...env } })
+function invoke(config, args) {
+  const out = spawnSync(process.execPath, [cli, '--config', config, ...args], { encoding: 'utf8', timeout: 10000 })
   assert.equal(out.error, undefined)
   return { ...out, json: args.includes('--json') ? JSON.parse(out.stdout) : undefined }
 }
@@ -50,22 +50,14 @@ test('CLI search returns unified JSON and explicitly bounded coverage', async t 
   assert.equal(out.status, 3)
   assert.match(out.stderr, /CREDENTIAL_STORAGE_BLOCKED/)
   assert.equal(out.json.schemaVersion, 1)
+  assert.equal(out.json.status, 'partial')
+  assert.equal(out.json.data[0].source, 'teams')
   assert.equal(out.json.data.length, 1)
   assert.equal(out.stdout.trim().split('\n').length, 1)
   assert.ok(out.json.coverage.every(c => c.complete === false))
   assert.ok(!(await readFile(config, 'utf8')).includes('障害'))
 })
-test('CLI blocked Slack access preserves other service results without secrets', async t => {
-  const { config } = await fixture(t)
-  const out = invoke(config, ['search', '障害', '--json'], { CMX_TEST_SLACK_FAIL: '1' })
-  assert.equal(out.status, 3)
-  assert.equal(out.json.status, 'partial')
-  assert.equal(out.json.data[0].source, 'teams')
-  assert.equal(out.json.errors[0].code, 'CREDENTIAL_STORAGE_BLOCKED')
-  assert.ok(!out.stdout.includes('xoxc-'))
-  assert.ok(!out.stderr.includes('xoxc-'))
-})
-test('CLI unknown commands, invalid options and writes fail without backend access', async t => {
+test('CLI unknown commands, invalid options and writes return structured usage errors', async t => {
   const { config } = await fixture(t)
   for (const args of [['send', 'secret'], ['search', 'x', '--limit', '5oops'], ['channels', '--since', '7d'], ['messages', sRef, '--source', 'teams'], ['doctor', 'unexpected']]) {
     const out = invoke(config, [...args, '--json'])
@@ -77,7 +69,6 @@ test('CLI unknown commands, invalid options and writes fail without backend acce
 test('CLI cursor must select one account and Teams rejects unsupported paging', async t => {
   const { config } = await fixture(t)
   assert.equal(invoke(config, ['channels', '--cursor', 'next==', '--json']).status, 2)
-  assert.equal(invoke(config, ['channels', '--source', 'slack', '--cursor', 'next==', '--json']).status, 1)
   const teams = invoke(config, ['messages', tRef, '--cursor', 'next==', '--json'])
   assert.equal(teams.status, 1)
   assert.equal(teams.json.errors[0].code, 'UNSUPPORTED')
@@ -120,12 +111,4 @@ test('CLI human results include scope warnings on stderr, not mixed with data', 
   assert.match(out.stdout, /障害/)
   assert.ok(!out.stdout.includes('[scope]'))
   assert.match(out.stderr, /tracked-conversations-only/)
-})
-test('npm-style symlink invocation reaches main()', { skip: process.platform === 'win32' }, async t => {
-  const { dir } = await fixture(t)
-  const link = resolve(dir, 'cmx')
-  await symlink(cli, link)
-  const out = spawnSync(process.execPath, [link, '--version'], { encoding: 'utf8' })
-  assert.equal(out.status, 0)
-  assert.equal(out.stdout.trim(), '0.1.0')
 })

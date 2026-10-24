@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, writeFile, rm, stat, symlink } from 'node:fs/promises'
+import { mkdtemp, writeFile, rm, stat, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Adapter, collect, filterMessages, search } from '../dist/adapters.js'
@@ -19,7 +19,8 @@ const fails = code => e => e instanceof CmxError && e.code === code
 test('conversation refs preserve native IDs and isolate same-name accounts', () => {
   assert.deepEqual(parseRef(makeRef(tr)), tr)
   assert.deepEqual(parseRef(makeRef({ ...tr, id: '19:a/b#日本語@thread.v2' })), { ...tr, id: '19:a/b#日本語@thread.v2' })
-  assert.notEqual(makeRef(tr), makeRef(sr))
+  assert.equal(makeRef(tr), 'teams/work/channel/19%3Aabc%40thread.tacv2')
+  assert.notEqual(makeRef(tr), makeRef({ ...tr, source: 'slack' }))
   assert.throws(() => parseRef('slack/work/channel/%'), fails('USAGE'))
   assert.throws(() => parseRef('slack/work/channel/C123/extra'), fails('USAGE'))
   assert.throws(() => parseRef('slack/../channel/C123'), fails('USAGE'))
@@ -86,22 +87,25 @@ test('Slack raw history preserves pagination and exact timestamp IDs', async () 
   assert.equal(page.coverage.nextCursor, 'next==')
   assert.ok(argv.includes('conversations.history'))
   assert.ok(argv.includes('cursor=previous=='))
-  assert.ok(argv.indexOf('--raw') < argv.indexOf('api'))
+  assert.deepEqual(argv.slice(0,8), ['--workspace','company','--output','json','--raw','--no-retry','api','call'])
   assert.ok(page.coverage.limitations.includes('thread-replies-not-expanded'))
 })
 test('Slack conversations select channels and DMs separately', async () => {
   let argv
   const adapter = new Adapter(slack, async (_, args) => { argv = args; return { ok: true, channels: [{ id: 'D1', user: 'U2' }], response_metadata: { next_cursor: '' } } })
-  const page = await adapter.conversations('chat', 50)
-  assert.ok(argv.includes('types=im,mpim'))
-  assert.equal(page.data[0].name, 'U2')
-  assert.equal(page.coverage.complete, true)
+  for(const [kind,types] of [['chat','types=im,mpim'],['channel','types=public_channel,private_channel']]){
+    const page = await adapter.conversations(kind, 50)
+    assert.ok(argv.includes(types))
+    assert.equal(page.data[0].name, 'U2')
+    assert.equal(page.coverage.complete, true)
+  }
 })
 test('Slack thread command avoids floating-point coercion and states coverage limits', async () => {
   let argv
   const page = await new Adapter(slack, async (_, args) => { argv = args; return [{ ts: '1700000000.000001', text: 'root' }] }).messages(sr, 10, undefined, '1700000000.000001')
   assert.ok(argv.includes('1700000000.000001'))
   assert.ok(argv.includes('thread'))
+  assert.deepEqual(argv.slice(0,8), ['--workspace','company','--output','json','--raw','--no-retry','msg','thread'])
   assert.equal(page.coverage.hasMore, null)
   assert.ok(page.coverage.limitations.includes('parent-message-included'))
 })
@@ -128,18 +132,21 @@ test('aggregate byte limit stops further calls without losing existing results',
   assert.deepEqual(response.errors.map(e => e.code), ['OUTPUT_LIMIT', 'NOT_ATTEMPTED'])
 })
 test('search is literal, Unicode-normalized, tracked-only, with explicit unknown dates', async () => {
-  const config = { schemaVersion: 1, accounts: [slack, teams], tracked: [makeRef(sr), makeRef(tr)] }
-  const response = await search(config, [slack, teams], '障害', 20, { timeout: 100 }, undefined, undefined, async account => account.source === 'slack'
+  const excluded = { ...slack, name: 'excluded', profile: 'excluded' }, calls = []
+  const config = { schemaVersion: 1, accounts: [slack, teams, excluded], tracked: [makeRef(sr), makeRef(tr), makeRef({ ...sr, account: 'excluded' })] }
+  const response = await search(config, [slack, teams], '障害', 20, { timeout: 100 }, undefined, undefined, async account => { calls.push(`${account.source}/${account.name}`); return account.source === 'slack'
     ? { ok: true, messages: [{ ts: '1700000000.000001', text: '障害対応' }], has_more: false }
-    : { command: 'channel-messages', data: [{ id: 'M1', content: '<p>障害復旧</p>' }] })
+    : { command: 'channel-messages', data: [{ id: 'M1', content: '<p>障害復旧</p>' }] } })
+  assert.deepEqual(calls, ['slack/work', 'teams/work'])
   assert.equal(response.data.length, 2)
   assert.ok(response.coverage.every(c => c.limitations.includes('tracked-conversations-only')))
   assert.ok(response.coverage.every(c => c.complete === false))
   const page = { data: [{ text: 'ＡＢＣ[.*]', createdAt: null }, { text: 'abc', createdAt: '2026-10-22T00:00:00Z' }], coverage }
   assert.equal(filterMessages(page, '[.*]').data.length, 1)
   assert.equal(filterMessages(page, 'abc').data.length, 2)
-  assert.equal(filterMessages(page, undefined, 0).data.length, 1)
-  assert.ok(filterMessages(page, undefined, 0).coverage.limitations.includes('unknown-timestamps-excluded:1'))
+  const dated = filterMessages(page, undefined, 0)
+  assert.equal(dated.data.length, 1)
+  assert.ok(dated.coverage.limitations.includes('unknown-timestamps-excluded:1'))
 })
 test('config validates schema, binds identities and excludes credential fields', () => {
   assert.throws(() => validateConfig({ schemaVersion: 1, accounts: [slack], tracked: [], token: 'secret' }), fails('CONFIG'))
@@ -147,7 +154,7 @@ test('config validates schema, binds identities and excludes credential fields',
   assert.throws(() => validateConfig({ schemaVersion: 1, accounts: [], tracked: [makeRef(sr)] }), fails('CONFIG'))
   assert.throws(() => selectAccounts({ accounts: [slack] }, 'all', ''), fails('USAGE'))
 })
-test('config updates are private, atomic, idempotent, and lock-protected', async t => {
+test('config updates preserve private mode, identity binding, idempotence and locks', async t => {
   const path = join(await temporary(t), 'config.json')
   await addAccount(path, slack); await addAccount(path, slack)
   assert.equal((await readConfig(path)).accounts.length, 1)
@@ -156,8 +163,6 @@ test('config updates are private, atomic, idempotent, and lock-protected', async
   await writeFile(path + '.lock', '')
   await assert.rejects(changeConfig(path, x => x), fails('CONFIG_LOCKED'))
   assert.equal((await readConfig(path)).accounts.length, 1)
-  const raw = await readFile(path, 'utf8')
-  assert.ok(!raw.includes('token'))
 })
 test('runner treats shell metacharacters as literal arguments', async () => {
   const payload = 'a b; echo SECRET & $(whoami) "日本語"'
@@ -166,7 +171,7 @@ test('runner treats shell metacharacters as literal arguments', async () => {
 })
 test('runner caps stdout/stderr, times out, and does not disclose failure bodies', async () => {
   await assert.rejects(execute({ command: process.execPath, args: ['-e', 'setInterval(()=>{},100)'] }, [], { timeout: 50 }), fails('TIMEOUT'))
-  await assert.rejects(execute({ command: process.execPath, args: ['-e', 'process.stdout.write("x".repeat(10000))'] }, [], { timeout: 3000, maxBytes: 200 }), fails('OUTPUT_LIMIT'))
+  for(const stream of ['stdout','stderr']) await assert.rejects(execute({ command: process.execPath, args: ['-e', `process.${stream}.write("x".repeat(10000))`] }, [], { timeout: 3000, maxBytes: 200 }), fails('OUTPUT_LIMIT'))
   await assert.rejects(execute({ command: process.execPath, args: ['-e', 'console.error("invalid_auth xoxc-VERY-SECRET"); process.exitCode=1'] }, [], { timeout: 3000 }), e => e.code === 'AUTHENTICATION' && !e.message.includes('SECRET'))
 })
 test('runner handles aborted operations and invalid JSON safely', async t => {

@@ -133,7 +133,7 @@
       "version": "0.2.0+cmx.1",
       "contract": "patches/slk/contract.json",
       "patch": "patches/slk/secure-storage.patch",
-      "patchSha256": "2d1e4ce908af7c2d10d75da7d41007e6ef77422daad4ee2395ce95a36d1b70f0",
+      "patchSha256": "73b7d277655cd1585d5fee3330ec02adfdd1d7d2934cb431364f6bfcb9530586",
       "sourceArchiveSha256": "cb7b4a106b5e2ecf2e7baa6035016ac973a1e99ceea69f47bb3a52dab6b11ecf",
       "persistentTargets": [
         "win32-x64",
@@ -145,7 +145,8 @@
         "linux-arm64"
       ],
       "binaryHashesAndBuildProvenance": "vendor/slk/secure-builds.json generated and verified by the same CI run; BACKEND_PROVENANCE.json beside tgz",
-      "note": "artifacts and credentialStorage below retain unpatched upstream reference evidence; Windows/macOS release bytes are replaced only by source/patch/hash-verified native builds"
+      "note": "artifacts and credentialStorage below retain unpatched upstream reference evidence; Windows/macOS release bytes are replaced only by source/patch/hash-verified native builds",
+      "requiredMockProof": "Exact library test, one executed/passed, no failed/ignored tests; name/target/source/patch/hash bound in mock-test-proof.json. Zero-test prior receipts withdrawn."
     }
   },
   "licenses": {

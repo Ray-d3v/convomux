@@ -1,5 +1,11 @@
 # Validation record (2026-10-24)
 
+## Audit correction: actual Rust test execution required
+
+OpenClaw test-audit at pinned fe8d4597345c307f637fe0a2a5e6770226c7da9d found that prior 6ec429e/2c9a5e8/6cfa126 Rust jobs used --bin slk even though main imports the library. Logs show 0 tests/0 filtered out. Their compiler/native help/package results remain evidence, but the statements below that mock-store tests passed are historical and withdrawn. No real vault/account was queried. Exact --lib/--exact selection and a mandatory one-test name/count/source/patch/target proof now gate recording, packaging and runtime; old receipts are rejected. Current patch hash is 73b7d277655cd1585d5fee3330ec02adfdd1d7d2934cb431364f6bfcb9530586. Actual corrected native results are recorded only after final CI, linked in the PR.
+
+The audit preserves the real native package matrix and removes only duplicate/unreachable proof after naming keepers. Six targeted mutations (missing raw, disabled size/status checks, missing timeout cancellation, stdout notice, zero-test success) were caught by intended assertions; compiled files were restored byte-for-byte. See TEST_AUDIT.md for ledger, timing and limits.
+
 ## Managed secure backend integration
 
 The same upstream authentication code is patched at five files, source archive SHA cb7b4a106b5e2ecf2e7baa6035016ac973a1e99ceea69f47bb3a52dab6b11ecf and patch SHA 2d1e4ce908af7c2d10d75da7d41007e6ef77422daad4ee2395ce95a36d1b70f0. Windows native storage is enabled, nonpersistent stores rejected before auth, plaintext store/load methods removed, and explicit requested-profile errors no longer try active. No new registry source package is introduced. MIT attribution is retained; private:true/UNLICENSED remain unchanged.
