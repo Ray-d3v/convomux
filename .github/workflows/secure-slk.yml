@@ -1,0 +1,67 @@
+name: Patched Slack backend candidates
+on:
+  workflow_call:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: secure-slk-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    name: Patched slk ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: win32-x64
+            triple: x86_64-pc-windows-msvc
+          - os: macos-15
+            target: darwin-arm64
+            triple: aarch64-apple-darwin
+          - os: macos-15-intel
+            target: darwin-x64
+            triple: x86_64-apple-darwin
+          - os: ubuntu-latest
+            target: linux-x64
+            triple: x86_64-unknown-linux-gnu
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/.upstream/slk-target
+      CARGO_BUILD_JOBS: '2'
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_RELEASE_LTO: thin
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: '16'
+      RUSTFLAGS: --remap-path-prefix=${{ github.workspace }}=/cmx-source
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci --ignore-scripts
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
+        with:
+          toolchain: 1.98.0
+          targets: ${{ matrix.triple }}
+      - run: node scripts/prepare-secure-slk.mjs
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            .upstream/slk-target
+          key: slk-secure-${{ runner.os }}-${{ matrix.target }}-rust-1.98.0-${{ hashFiles('patches/slk/secure-storage.patch') }}
+          restore-keys: slk-secure-${{ runner.os }}-${{ matrix.target }}-rust-1.98.0-
+      - name: Test only synthetic credential stores; never access native vaults
+        run: node scripts/test-secure-slk.mjs ${{ matrix.triple }}
+      - name: Build a native candidate without install-time compilation
+        run: cargo build --manifest-path .upstream/slk-secure-source/Cargo.toml --target ${{ matrix.triple }} --locked --release
+      - name: Verify authentication-free help/version and record provenance
+        run: node scripts/record-secure-slk.mjs ${{ matrix.target }} ${{ matrix.triple }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: secure-slk-${{ matrix.target }}
+          path: .upstream/secure-build/
+          if-no-files-found: error

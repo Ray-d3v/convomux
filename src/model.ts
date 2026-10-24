@@ -84,6 +84,13 @@ export function source(value: string): Source {
   if (value !== 'teams' && value !== 'slack') return fail('USAGE', 'Source must be teams or slack.')
   return value
 }
+export function storedProfile(value: string, service: Source): string {
+  if (service === 'teams') return label(value)
+  // slk browser login stores the service's display name, not necessarily its subdomain.
+  // This also becomes part of upstream fallback filenames: exclude path/control characters.
+  if (!/^[\p{L}\p{N}][\p{L}\p{N}\p{Zs}._()-]{0,127}$/u.test(value) || value === '.' || value === '..') return fail('USAGE', 'Slack stored workspace names must be safe display names without path or control characters.')
+  return value
+}
 export function makeRef(value: Ref): string {
   return [value.source, label(value.account), value.kind, encodeURIComponent(id(value.id))].join('/')
 }

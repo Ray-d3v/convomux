@@ -1,18 +1,161 @@
 {
-  "checkedOn": "2026-10-23",
-  "note": "Source contracts inspected; not a claim of live service validation or runtime version enforcement. Install matching backend versions/revisions yourself.",
+  "checkedOn": "2026-10-24",
+  "note": "Pinned distribution inputs, not live authentication certification. No runtime upstream tracking. Host execution is recorded separately in docs/VALIDATION.md.",
   "teams": {
     "repository": "https://github.com/nakasyou/teams-api",
     "revision": "04721b476a200e71e0da8d4958e27385d4787e7b",
     "sourcePackageVersion": "0.2.1",
+    "entry": "dist/cli/index.mjs",
+    "npmTarball": "https://registry.npmjs.org/msteams/-/msteams-0.2.1.tgz",
+    "npmIntegrity": "sha512-W71XKQiNknf5SUR1nS0b8YGh/ebqNvSBIOEhVlUBwcgu5D3CTflVP6/625x2SM7O1eeIu8+gQC57W0qy2nSElA==",
+    "license": "MIT",
     "binary": "teams",
-    "contractFiles": ["src/cli/args.ts", "src/cli/commands.ts", "src/cli/output.ts", "src/rest/routes/channels.ts", "src/types/teams.ts"]
+    "contractFiles": [
+      "src/cli/args.ts",
+      "src/cli/commands.ts",
+      "src/cli/output.ts",
+      "src/rest/routes/channels.ts",
+      "src/types/teams.ts"
+    ]
   },
   "slack": {
     "repository": "https://github.com/osodevops/slack-cli",
-    "revision": "66c0f26492cb049ea287f6463d8a19eb97ec7cb9",
+    "revision": "f8ce5c0d3ecb12602cbeb0469c555ce47eeccbf1",
+    "previousSourceRevision": "66c0f26492cb049ea287f6463d8a19eb97ec7cb9",
+    "release": "v0.2.0",
     "sourcePackageVersion": "0.2.0",
     "binary": "slk",
-    "contractFiles": ["src/cli/mod.rs", "src/cli/api.rs", "src/cli/auth.rs", "src/cli/helpers.rs", "src/cli/messages.rs"]
+    "contractFiles": [
+      "src/cli/mod.rs",
+      "src/cli/api.rs",
+      "src/cli/auth.rs",
+      "src/cli/helpers.rs",
+      "src/cli/messages.rs",
+      "src/auth/browser_login.rs",
+      "src/auth/keyring.rs",
+      "src/auth/mod.rs",
+      "src/config/mod.rs",
+      "Cargo.toml",
+      ".github/workflows/release.yml"
+    ],
+    "requirements": "Browser login requires installed discoverable Chrome/Chromium and interactive desktop. cmx downloads no browser. Windows uses entry-local mock storage, Linux kernel keyutils is volatile, macOS uses Keychain. OS-store errors permit plaintext credential read/write and a requested-profile load error may select profiles.active instead. No keyring-only switch exists. See docs/CREDENTIAL_STORAGE.md; live login/storage remains unverified. Browser login stores service-returned display name, which may differ from subdomain.",
+    "credentialStorage": {
+      "cmxAccessPolicy": "Only verified patched native Windows/macOS bytes are admitted; unverified/missing/modified builds and overrides blocked. Linux kernel-only authentication unsupported. No environment bypass.",
+      "keyring": {
+        "version": "3.6.3",
+        "crateUrl": "https://static.crates.io/crates/keyring/keyring-3.6.3.crate",
+        "sha256": "eebcc3aff044e5944a8fbaf69eb277d11986064cba30c468730e8b9909fb551c",
+        "enabledFeatures": [
+          "apple-native",
+          "linux-native"
+        ],
+        "disabledFeaturesOfInterest": [
+          "windows-native",
+          "sync-secret-service",
+          "async-secret-service",
+          "linux-native-sync-persistent",
+          "linux-native-async-persistent"
+        ],
+        "windowsDefault": "entry-local-mock; no persistence across Entry objects",
+        "linuxDefault": "volatile kernel keyutils; reboot/expiry clears credentials",
+        "macosDefault": "Keychain; endpoint availability/permissions unverified"
+      },
+      "plaintextWriteOn": [
+        "Entry::new error",
+        "set_password error"
+      ],
+      "plaintextReadOn": [
+        "Entry::new error",
+        "get_password error including NoEntry"
+      ],
+      "writePermissions": "Unix chmod 0600 occurs after plaintext write; no rollback on chmod failure",
+      "oldPlaintextRemovedOnSuccessfulStore": false,
+      "fallbackDisableSwitch": false,
+      "requestedProfileLoadError": "resolve_credentials ignores the error and attempts profiles.active",
+      "releaseBinaryMarkers": {
+        "win32-x64": "MockCredential",
+        "linux-x64": "KeyutilsCredential",
+        "darwin-arm64": "MacCredential"
+      },
+      "windowsOfflineReproduction": {
+        "binarySha256Verified": true,
+        "nativeStoreInvoked": false,
+        "realAccountsOrCredentialsRead": false,
+        "realAuthenticationOrServiceCalls": false,
+        "loopbackOnly": true,
+        "plaintextFixtureUsedWhenRequestedProfileMissing": true,
+        "activeProfileFallbackObserved": true,
+        "noCredentialFixtureCausedFailureWithoutRequest": true
+      },
+      "scope": "Historical pinned upstream analysis and Windows mock-only reproduction. Supplied local patch removes plaintext fallback and strict-profile fallthrough. No live endpoint/store certification.",
+      "appliesTo": "Unpatched upstream v0.2.0 source/reference artifacts; supplied patched Windows/macOS behavior is recorded in localPatch and generated secure-builds manifest."
+    },
+    "license": "MIT in release Cargo.toml; LICENSE text added upstream at previousSourceRevision, absent from release tag/archives",
+    "artifacts": {
+      "win32-x64": {
+        "url": "https://github.com/osodevops/slack-cli/releases/download/v0.2.0/slk-v0.2.0-x86_64-pc-windows-msvc.zip",
+        "format": "zip",
+        "binary": "slk.exe",
+        "sha256": "a142a4747b8f6f284b25fb566b89e8b98249289bdec52f5709d11191c1d01a3f",
+        "binarySha256": "5091144841f858b1b6b8a8f9aa2bad9faef1db9668dddd2b2f00a969ad965886"
+      },
+      "darwin-arm64": {
+        "url": "https://github.com/osodevops/slack-cli/releases/download/v0.2.0/slk-v0.2.0-aarch64-apple-darwin.tar.gz",
+        "format": "tar.gz",
+        "binary": "slk",
+        "sha256": "fe42c62a96c3dee797eee183837eeb2cfe7a2c40fff022993e773197da0aebe6",
+        "binarySha256": "2644eba8643d1beda5396f0c3e94150f35bfdff2703c8477419245709419791f"
+      },
+      "darwin-x64": {
+        "url": "https://github.com/osodevops/slack-cli/releases/download/v0.2.0/slk-v0.2.0-x86_64-apple-darwin.tar.gz",
+        "format": "tar.gz",
+        "binary": "slk",
+        "sha256": "3a21e764e56c1f7da1526d5c06248b1b606f53854e921e13e826d3836f5cb7f3",
+        "binarySha256": "b1fb4b0573e060009a95e790a7312db493ff9ca899b1e1ae7d2009896404597e"
+      },
+      "linux-x64": {
+        "url": "https://github.com/osodevops/slack-cli/releases/download/v0.2.0/slk-v0.2.0-x86_64-unknown-linux-musl.tar.gz",
+        "format": "tar.gz",
+        "binary": "slk",
+        "sha256": "0c92cccce8b83032221061291f059ef9d234e36f2aaf327d497546f64b2d198d",
+        "binarySha256": "60de4d58ee3a211fa67fb7cba6ae13b3811ce5a174b79d58d636c1f952560329"
+      },
+      "linux-arm64": {
+        "url": "https://github.com/osodevops/slack-cli/releases/download/v0.2.0/slk-v0.2.0-aarch64-unknown-linux-musl.tar.gz",
+        "format": "tar.gz",
+        "binary": "slk",
+        "sha256": "e4b1580dac78e46cdad5e7836d1567b5d955557ee77e15dd49aeb992e8713646",
+        "binarySha256": "59791befa5caf387d5336e303e88b5b448e70223eec613ba0d8a9b9043bdfeee"
+      }
+    },
+    "cargoLockSha256": "55de689146701de500b7f54c8665f64f6ad8b6dac92fa54618ae28f7780aecb5",
+    "localPatch": {
+      "version": "0.2.0+cmx.1",
+      "contract": "patches/slk/contract.json",
+      "patch": "patches/slk/secure-storage.patch",
+      "patchSha256": "73b7d277655cd1585d5fee3330ec02adfdd1d7d2934cb431364f6bfcb9530586",
+      "sourceArchiveSha256": "cb7b4a106b5e2ecf2e7baa6035016ac973a1e99ceea69f47bb3a52dab6b11ecf",
+      "persistentTargets": [
+        "win32-x64",
+        "darwin-arm64",
+        "darwin-x64"
+      ],
+      "unsupportedAuthenticatedTargets": [
+        "linux-x64",
+        "linux-arm64"
+      ],
+      "binaryHashesAndBuildProvenance": "vendor/slk/secure-builds.json generated and verified by the same CI run; BACKEND_PROVENANCE.json beside tgz",
+      "note": "artifacts and credentialStorage below retain unpatched upstream reference evidence; Windows/macOS release bytes are replaced only by source/patch/hash-verified native builds",
+      "requiredMockProof": "Exact library test, one executed/passed, no failed/ignored tests; name/target/source/patch/hash bound in mock-test-proof.json. Zero-test prior receipts withdrawn."
+    }
+  },
+  "licenses": {
+    "msteams-MIT.txt": "cf82af2a075a1712c86ce26bf8657341e7b1d2dddcdc4f63dba05e0574f0185b",
+    "slk-MIT.txt": "c550217cba23cda2bd68d34ceb3a71a841cd1ef9097c41db2f401b58b3362391",
+    "simple-update-notifier-MIT.txt": "c34396f8f573f642c7ce5d18fb9b46b2d85e46979f8c06facca387c5293baede",
+    "slk-Cargo.lock": "55de689146701de500b7f54c8665f64f6ad8b6dac92fa54618ae28f7780aecb5",
+    "slk-dependencies.json": "878086682e51003ca5916e8ccc2ccafe0718d7c319ef98ba7520b1aa6fae3d50",
+    "slk-dependency-notices.txt": "5358abd79dc5edb0432313a3354f7f48d96e73874eceabbffcff7a82ce27af66",
+    "slk-notice-sources.json": "a524db969c0fdfabf2ef1e8669a23c876711841f1b68c9253aefff675bf825b7"
   }
 }

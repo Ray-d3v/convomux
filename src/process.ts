@@ -1,39 +1,24 @@
 import { spawn } from 'node:child_process'
 import { access, stat } from 'node:fs/promises'
 import { constants } from 'node:fs'
-import { delimiter, dirname, extname, isAbsolute, join } from 'node:path'
+import { extname, isAbsolute } from 'node:path'
+import { bundledBackend } from './backends.js'
+import { requireSafeSlackBackend } from './storage.js'
 import { CmxError, fail, type Account } from './model.js'
 
 export interface Invocation { command: string; args: string[] }
-export interface RunOptions { timeout: number; signal?: AbortSignal; interactive?: boolean; maxBytes?: number }
+export interface RunOptions { timeout: number; signal?: AbortSignal; interactive?: boolean; captureInteractiveOutput?: boolean; maxBytes?: number }
 export type Runner = (account: Account, args: string[], options: RunOptions) => Promise<unknown>
 
 async function exists(path: string): Promise<boolean> {
   try { return (await stat(path)).isFile() } catch { return false }
 }
-export async function resolveExecutable(account: Account, platform = process.platform, pathValue = process.env.PATH ?? ''): Promise<Invocation> {
+export async function resolveExecutable(account: Account, platform: string = process.platform, arch: string = process.arch): Promise<Invocation> {
   let command = account.executable
   if (command && !isAbsolute(command)) return fail('CONFIG', 'Custom executable paths must be absolute.')
-  if (!command) {
-    const name = account.source === 'teams' ? 'teams' : 'slk'
-    const suffixes = platform === 'win32' ? ['.exe', '.cmd', ''] : ['']
-    for (const entry of pathValue.split(platform === 'win32' ? ';' : delimiter).filter(Boolean)) {
-      if (!isAbsolute(entry)) continue // Never implicitly execute a binary from the current directory.
-      for (const suffix of suffixes) {
-        const candidate = join(entry, name + suffix)
-        if (await exists(candidate)) { command = candidate; break }
-      }
-      if (command) break
-    }
-  }
-  if (!command || !await exists(command)) return fail('DEPENDENCY_MISSING', `Install ${account.source === 'teams' ? 'msteams (teams)' : 'osodevops/slack-cli (slk)'} or configure its absolute executable path.`)
+  if (!command) command = await bundledBackend(account.source, platform, arch)
+  if (!await exists(command)) return fail('DEPENDENCY_MISSING', 'The packaged or configured backend is missing. Reinstall ConvoMux from a verified package or check the trusted absolute --executable override.')
   const extension = extname(command).toLowerCase()
-  // npm's Windows .cmd shims need a shell. Resolve the known package entry instead.
-  if (extension === '.cmd' && account.source === 'teams' && !account.executable) {
-    const entry = join(dirname(command), 'node_modules', 'msteams', 'dist', 'cli', 'index.mjs')
-    if (!await exists(entry)) return fail('DEPENDENCY_MISSING', 'Cannot resolve the msteams npm entry. Set --executable to its dist/cli/index.mjs file.')
-    return { command: process.execPath, args: [entry] }
-  }
   if (['.cmd', '.bat', '.ps1'].includes(extension)) return fail('CONFIG', 'Shell script shims are not executed. Configure a native executable or a .js/.mjs entry.')
   if (['.js', '.mjs', '.cjs'].includes(extension)) return { command: process.execPath, args: [command] }
   if (platform !== 'win32') {
@@ -48,6 +33,9 @@ export function backendEnvironment(): NodeJS.ProcessEnv {
   return env
 }
 export function backendError(body: string, code: number | null): CmxError {
+  if (/CMX_SECURE_STORAGE_UNSUPPORTED/u.test(body)) return new CmxError('UNSUPPORTED', 'The Slack build cannot provide secure persistent OS storage on this platform. No credential file or alternate account was attempted.')
+  if (/CMX_SECURE_PROFILE_UNAVAILABLE/u.test(body)) return new CmxError('CREDENTIAL_PROFILE_UNAVAILABLE', 'The requested Slack profile could not be loaded from the secure OS store. No plaintext file or other active account was attempted.')
+  if (/CMX_SECURE_STORAGE/u.test(body)) return new CmxError('CREDENTIAL_STORAGE_UNAVAILABLE', 'The secure OS credential operation failed. No plaintext fallback was attempted; inspect storage availability locally without sharing credentials.')
   if (/invalid_auth|not_authed|token_revoked|account_inactive|invalid_grant|login required|no credentials|no token|refresh.token.*(?:missing|expired)|profile.*not found/iu.test(body)) return new CmxError('AUTHENTICATION', 'Authentication is missing or expired. Run cmx login for this account.')
   if (/ratelimited|rate.limit|retry.after|\b429\b/iu.test(body)) return new CmxError('RATE_LIMITED', 'The service rate limit was reached. Retry later; no automatic retry was attempted.')
   if (/missing_scope|access_denied|forbidden|enterprise_is_restricted|\b403\b/iu.test(body)) return new CmxError('FORBIDDEN', 'The service denied access. Existing account or organization permissions apply.')
@@ -59,7 +47,7 @@ export async function execute(invocation: Invocation, args: string[], options: R
   return new Promise((resolve, reject) => {
     const child = spawn(invocation.command, [...invocation.args, ...args], {
       shell: false, windowsHide: !options.interactive, env: backendEnvironment(),
-      stdio: options.interactive ? ['inherit', 2, 2] : ['ignore', 'pipe', 'pipe'],
+      stdio: options.interactive ? ['inherit', options.captureInteractiveOutput ? 'pipe' : 2, 2] : ['ignore', 'pipe', 'pipe'],
     })
     let stdout = '', stderr = '', bytes = 0
     let stopped: CmxError | undefined
@@ -97,7 +85,8 @@ export async function execute(invocation: Invocation, args: string[], options: R
   })
 }
 export const run: Runner = async (account, args, options) => {
+  await requireSafeSlackBackend(account)
   const output = await execute(await resolveExecutable(account), args, options)
-  if (options.interactive) return null
+  if (options.interactive && !options.captureInteractiveOutput) return null
   try { return JSON.parse(output) as unknown } catch { return fail('INVALID_RESPONSE', 'Backend did not return valid JSON. No raw output has been printed.') }
 }
