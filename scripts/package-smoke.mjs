@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { mkdtemp, mkdir, readFile, writeFile, rm, access, readdir, symlink, copyFile, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join, resolve, relative, isAbsolute, sep } from 'node:path'
 import { pathToFileURL, fileURLToPath } from 'node:url'
 import { list } from 'tar'
 import { contracts, sha256 } from './backend-artifacts.mjs'
@@ -61,7 +61,9 @@ try {
     const { resolveExecutable } = await import(pathToFileURL(join(installed,'dist','process.js')).href)
     for (const source of ['teams','slack']) {
       const invocation = await resolveExecutable({source,name:'synthetic',profile:'synthetic'})
-      assert.ok(invocation.command.startsWith(installedRoot) || invocation.args[0]?.startsWith(installedRoot))
+      const backendPath = await realpath(invocation.args[0] ?? invocation.command)
+      const withinPackage = relative(installedRoot,backendPath)
+      assert.ok(withinPackage && !isAbsolute(withinPackage) && withinPackage !== '..' && !withinPackage.startsWith('..'+sep), `Backend resolved outside installed package: ${backendPath}`)
       assert.match(command(invocation.command,[...invocation.args,'--help'],{env}),source==='teams'?/Teams/i:/slk|Slack/i)
       if(source==='slack') assert.match(command(invocation.command,[...invocation.args,'--version'],{env}),/0\.2\.0/)
     }

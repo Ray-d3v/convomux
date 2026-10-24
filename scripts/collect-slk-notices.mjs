@@ -20,7 +20,7 @@ const packages=lock.split('[[package]]').slice(1).map(block=>{
   const field=name=>new RegExp(`^${name} = "([^"]+)"`,'m').exec(block)?.[1]
   return {name:field('name'),version:field('version'),source:field('source'),checksum:field('checksum')}
 }).filter(pkg=>pkg.source)
-for(const pkg of packages)if(pkg.source!=='registry+https://github.com/rust-lang/crates.io-index'||!/^[-a-zA-Z0-9_]+$/.test(pkg.name)||!/^[-a-zA-Z0-9.+]+$/.test(pkg.version)||!/^\w{64}$/.test(pkg.checksum))throw Error('Unexpected Cargo source')
+for(const pkg of packages)if(pkg.source!=='registry+https://github.com/rust-lang/crates.io-index'||!/^[-a-zA-Z0-9_]+$/.test(pkg.name)||!/^[-a-zA-Z0-9.+]+$/.test(pkg.version)||!/^([a-f0-9]{64})$/.test(pkg.checksum))throw Error('Unexpected Cargo source')
 const results=new Array(packages.length);let next=0,completed=0
 await Promise.all(Array.from({length:6},async()=>{
   while(next<packages.length){
