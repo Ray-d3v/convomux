@@ -3,12 +3,14 @@ import { parseArgs } from 'node:util'
 import { pathToFileURL } from 'node:url'
 import { resolve } from 'node:path'
 import { realpathSync } from 'node:fs'
+import { packageInfo } from './package.js'
+import { checkForUpdates } from './updates.js'
 import { Adapter, collect, filterMessages, search } from './adapters.js'
 import { accountFor, addAccount, changeConfig, configPath, readConfig, selectAccounts } from './config.js'
 import { run, type RunOptions } from './process.js'
-import { exitCode, fail, failure, label, parseRef, positive, record, result, source, terminal, timeBound, type Account, type Result } from './model.js'
+import { exitCode, fail, failure, label, parseRef, positive, record, result, source, storedProfile, terminal, timeBound, type Account, type Result } from './model.js'
 
-const HELP = `ConvoMux 0.1.0 — read-only Teams + Slack CLI
+const HELP = `ConvoMux ${packageInfo.version} — read-only Teams + Slack CLI
 
 Usage: cmx <command> [options]
 
@@ -82,7 +84,7 @@ function accountOptions(src: string, values: Record<string, string | boolean | u
   const profile = service === 'teams' ? values.profile ?? 'default' : values.workspace
   if (typeof profile !== 'string' || !profile) return fail('USAGE', 'Slack requires --workspace with its stored workspace name/subdomain.')
   if (service === 'teams' && values.workspace || service === 'slack' && (values.profile || values.tenant)) return fail('USAGE', 'Use --profile/--tenant for Teams and --workspace for Slack.')
-  const account: Account = { source: service, name: label(String(values.name ?? profile)), profile: label(profile) }
+  const account: Account = { source: service, name: label(String(values.name ?? profile)), profile: storedProfile(profile, service) }
   if (typeof values.executable === 'string') account.executable = resolve(values.executable)
   return account
 }
@@ -90,7 +92,7 @@ export async function dispatch(argv: string[], signal?: AbortSignal): Promise<Re
   if (!argv.length) return { help: HELP }
   const { values, positionals: args, command } = argumentsFor(argv)
   if (values.help) return { help: HELP }
-  if (values.version) return values.json ? result([{ version: '0.1.0' }]) : { help: '0.1.0\n' }
+  if (values.version) return values.json ? result([{ version: packageInfo.version }]) : { help: packageInfo.version + '\n' }
   const opt = (key: string): string | undefined => typeof values[key] === 'string' ? values[key] : undefined
   const path = configPath(opt('config'))
   const options: RunOptions = { timeout: positive(opt('timeout'), 30000, 300000), ...(signal ? { signal } : {}) }
@@ -107,7 +109,7 @@ export async function dispatch(argv: string[], signal?: AbortSignal): Promise<Re
       if (values.json || !process.stdin.isTTY || !process.stderr.isTTY) return fail('USAGE', 'Login requires an interactive terminal and does not support --json. No credential was requested.')
       const existing = await readConfig(path, true)
       const binding = existing.accounts.find(a => a.source === account.source && a.name === account.name)
-      if (binding && JSON.stringify(binding) !== JSON.stringify(account)) return fail('CONFIG', 'The account name already maps to another profile/executable. Use its existing mapping or a new name.')
+      if (binding && (account.source === 'teams' ? JSON.stringify(binding) !== JSON.stringify(account) : binding.executable !== account.executable)) return fail('CONFIG', 'The account name already maps to another profile/executable. Use its existing mapping or a new name.')
       let loginArgs: string[]
       if (account.source === 'teams') {
         loginArgs = ['--profile', account.profile, 'login']
@@ -117,9 +119,14 @@ export async function dispatch(argv: string[], signal?: AbortSignal): Promise<Re
         }
       } else {
         if (!/^[a-z0-9][a-z0-9-]{0,62}$/u.test(account.profile)) return fail('USAGE', 'Slack browser login requires a workspace subdomain, not a URL.')
-        loginArgs = ['auth', 'login', account.profile]
+        loginArgs = ['--output', 'json', '--raw', 'auth', 'login', account.profile]
       }
-      await run(account, loginArgs, { ...options, timeout: positive(opt('timeout'), 300000, 300000), interactive: true })
+      const loggedIn = await run(account, loginArgs, { ...options, timeout: positive(opt('timeout'), 300000, 300000), interactive: true, captureInteractiveOutput: account.source === 'slack' })
+      if (account.source === 'slack') {
+        const workspace = record(loggedIn).workspace
+        if (typeof workspace !== 'string') return fail('INVALID_RESPONSE', 'Slack login returned no stored workspace name. Existing cmx configuration was not changed.')
+        account.profile = storedProfile(workspace, 'slack')
+      }
     }
     await addAccount(path, account)
     return result([{ source: account.source, account: account.name, profile: account.profile, action: command === 'login' ? 'login-completed' : 'registered-not-yet-verified' }])
@@ -184,6 +191,7 @@ export function render(value: Result<unknown>, json: boolean): void {
   for (const e of value.errors) process.stderr.write(terminal(`[${e.code}] ${e.source ? e.source + '/' + e.account + ': ' : ''}${e.message}\n`))
 }
 export async function main(argv = process.argv.slice(2)): Promise<void> {
+  checkForUpdates(argv)
   const controller = new AbortController()
   const abort = (): void => controller.abort()
   process.on('SIGINT', abort)

@@ -1,18 +1,84 @@
 {
-  "checkedOn": "2026-10-23",
-  "note": "Source contracts inspected; not a claim of live service validation or runtime version enforcement. Install matching backend versions/revisions yourself.",
+  "checkedOn": "2026-10-24",
+  "note": "Pinned distribution inputs, not live authentication certification. No runtime upstream tracking. Host execution is recorded separately in docs/VALIDATION.md.",
   "teams": {
     "repository": "https://github.com/nakasyou/teams-api",
     "revision": "04721b476a200e71e0da8d4958e27385d4787e7b",
     "sourcePackageVersion": "0.2.1",
+    "entry": "dist/cli/index.mjs",
+    "npmTarball": "https://registry.npmjs.org/msteams/-/msteams-0.2.1.tgz",
+    "npmIntegrity": "sha512-W71XKQiNknf5SUR1nS0b8YGh/ebqNvSBIOEhVlUBwcgu5D3CTflVP6/625x2SM7O1eeIu8+gQC57W0qy2nSElA==",
+    "license": "MIT",
     "binary": "teams",
-    "contractFiles": ["src/cli/args.ts", "src/cli/commands.ts", "src/cli/output.ts", "src/rest/routes/channels.ts", "src/types/teams.ts"]
+    "contractFiles": [
+      "src/cli/args.ts",
+      "src/cli/commands.ts",
+      "src/cli/output.ts",
+      "src/rest/routes/channels.ts",
+      "src/types/teams.ts"
+    ]
   },
   "slack": {
     "repository": "https://github.com/osodevops/slack-cli",
-    "revision": "66c0f26492cb049ea287f6463d8a19eb97ec7cb9",
+    "revision": "f8ce5c0d3ecb12602cbeb0469c555ce47eeccbf1",
+    "previousSourceRevision": "66c0f26492cb049ea287f6463d8a19eb97ec7cb9",
+    "release": "v0.2.0",
     "sourcePackageVersion": "0.2.0",
     "binary": "slk",
-    "contractFiles": ["src/cli/mod.rs", "src/cli/api.rs", "src/cli/auth.rs", "src/cli/helpers.rs", "src/cli/messages.rs"]
+    "contractFiles": [
+      "src/cli/mod.rs",
+      "src/cli/api.rs",
+      "src/cli/auth.rs",
+      "src/cli/helpers.rs",
+      "src/cli/messages.rs",
+      "src/auth/browser_login.rs",
+      "src/auth/keyring.rs",
+      "Cargo.toml",
+      ".github/workflows/release.yml"
+    ],
+    "requirements": "Browser login requires installed discoverable Chrome/Chromium and interactive desktop. cmx downloads no browser. Keyring features are apple-native/linux-native, not windows-native; fallback actually writes plaintext cred_<workspace>.json (Unix 0600), despite encrypted-file comments. Browser login stores service-returned display name, which may differ from subdomain. Live login/storage remains unverified.",
+    "license": "MIT in release Cargo.toml; LICENSE text added upstream at previousSourceRevision, absent from release tag/archives",
+    "artifacts": {
+      "win32-x64": {
+        "url": "https://github.com/osodevops/slack-cli/releases/download/v0.2.0/slk-v0.2.0-x86_64-pc-windows-msvc.zip",
+        "format": "zip",
+        "binary": "slk.exe",
+        "sha256": "a142a4747b8f6f284b25fb566b89e8b98249289bdec52f5709d11191c1d01a3f",
+        "binarySha256": "5091144841f858b1b6b8a8f9aa2bad9faef1db9668dddd2b2f00a969ad965886"
+      },
+      "darwin-arm64": {
+        "url": "https://github.com/osodevops/slack-cli/releases/download/v0.2.0/slk-v0.2.0-aarch64-apple-darwin.tar.gz",
+        "format": "tar.gz",
+        "binary": "slk",
+        "sha256": "fe42c62a96c3dee797eee183837eeb2cfe7a2c40fff022993e773197da0aebe6",
+        "binarySha256": "2644eba8643d1beda5396f0c3e94150f35bfdff2703c8477419245709419791f"
+      },
+      "darwin-x64": {
+        "url": "https://github.com/osodevops/slack-cli/releases/download/v0.2.0/slk-v0.2.0-x86_64-apple-darwin.tar.gz",
+        "format": "tar.gz",
+        "binary": "slk",
+        "sha256": "3a21e764e56c1f7da1526d5c06248b1b606f53854e921e13e826d3836f5cb7f3",
+        "binarySha256": "b1fb4b0573e060009a95e790a7312db493ff9ca899b1e1ae7d2009896404597e"
+      },
+      "linux-x64": {
+        "url": "https://github.com/osodevops/slack-cli/releases/download/v0.2.0/slk-v0.2.0-x86_64-unknown-linux-musl.tar.gz",
+        "format": "tar.gz",
+        "binary": "slk",
+        "sha256": "0c92cccce8b83032221061291f059ef9d234e36f2aaf327d497546f64b2d198d",
+        "binarySha256": "60de4d58ee3a211fa67fb7cba6ae13b3811ce5a174b79d58d636c1f952560329"
+      },
+      "linux-arm64": {
+        "url": "https://github.com/osodevops/slack-cli/releases/download/v0.2.0/slk-v0.2.0-aarch64-unknown-linux-musl.tar.gz",
+        "format": "tar.gz",
+        "binary": "slk",
+        "sha256": "e4b1580dac78e46cdad5e7836d1567b5d955557ee77e15dd49aeb992e8713646",
+        "binarySha256": "59791befa5caf387d5336e303e88b5b448e70223eec613ba0d8a9b9043bdfeee"
+      }
+    }
+  },
+  "licenses": {
+    "msteams-MIT.txt": "cf82af2a075a1712c86ce26bf8657341e7b1d2dddcdc4f63dba05e0574f0185b",
+    "slk-MIT.txt": "c550217cba23cda2bd68d34ceb3a71a841cd1ef9097c41db2f401b58b3362391",
+    "simple-update-notifier-MIT.txt": "c34396f8f573f642c7ce5d18fb9b46b2d85e46979f8c06facca387c5293baede"
   }
 }

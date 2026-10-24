@@ -9,6 +9,10 @@
   },
   "files": [
     "dist",
+    "vendor",
+    "backend-contracts.json",
+    "THIRD_PARTY_NOTICES.md",
+    "docs/RELEASING.md",
     "README.md",
     "SECURITY.md"
   ],
@@ -18,9 +22,12 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run build && node --test test/core.test.mjs test/cli.test.mjs",
+    "test": "npm run build && node --test test/*.test.mjs",
     "check": "npm run typecheck && npm test",
-    "prepack": "npm run build"
+    "backends:prepare": "node scripts/backend-artifacts.mjs",
+    "backends:verify": "node scripts/verify-vendor.mjs",
+    "package:smoke": "node scripts/package-smoke.mjs",
+    "prepack": "npm run build && npm run backends:verify"
   },
   "repository": {
     "type": "git",
@@ -28,7 +35,15 @@
   },
   "devDependencies": {
     "@types/node": "22.19.7",
+    "@types/semver": "7.7.1",
+    "fflate": "0.8.3",
+    "tar": "7.5.22",
     "typescript": "5.8.3"
   },
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "bundleDependencies": ["msteams", "semver"],
+  "dependencies": {
+    "msteams": "0.2.1",
+    "semver": "7.7.3"
+  }
 }

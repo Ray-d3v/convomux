@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, writeFile, rm, stat, symlink, mkdir } from 'node:fs/promises'
+import { mkdtemp, readFile, writeFile, rm, stat, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Adapter, collect, filterMessages, search } from '../dist/adapters.js'
@@ -188,9 +188,11 @@ test('custom JS entrypoints are launched through Node; shell shims are rejected'
   assert.deepEqual(await resolveExecutable({ ...teams, executable: file }), { command: process.execPath, args: [file] })
   const shim = join(dir, 'teams.cmd'); await writeFile(shim, '')
   await assert.rejects(resolveExecutable({ ...teams, executable: shim }), fails('CONFIG'))
-  const entry = join(dir, 'node_modules', 'msteams', 'dist', 'cli', 'index.mjs')
-  await mkdir(join(dir, 'node_modules', 'msteams', 'dist', 'cli'), { recursive: true }); await writeFile(entry, '')
-  assert.deepEqual(await resolveExecutable(teams, 'win32', dir), { command: process.execPath, args: [entry] })
+  const bundled = await resolveExecutable(teams)
+  assert.equal(bundled.command, process.execPath)
+  assert.match(bundled.args[0], /msteams[\\/]dist[\\/]cli[\\/]index\.mjs$/)
+  await assert.rejects(resolveExecutable(slack, 'win32', 'arm64'), fails('UNSUPPORTED'))
+  assert.deepEqual(await resolveExecutable({ ...slack, executable: file }, 'win32', 'arm64'), { command: process.execPath, args: [file] })
 })
 test('config symlinks are not followed', { skip: process.platform === 'win32' }, async t => {
   const dir = await temporary(t), file = join(dir, 'real.json'), link = join(dir, 'link.json')
