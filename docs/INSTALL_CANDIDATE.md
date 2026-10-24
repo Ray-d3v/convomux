@@ -2,7 +2,7 @@
 
 This is an unpublished review candidate. The npm registry package name is not advertised as available. Node.js 22/24 and npm are required; the package includes the fixed Teams/Slack components. You do not install teams/slk, Rust, Bun or Git or compile anything.
 
-1. Open the artifact download linked in the draft PR's description. Sign in to GitHub if asked; public repository Actions artifact downloads require a signed-in account. Download **convomux-package**, then unzip it with the ordinary OS archive tool. The ZIP contains `ray-d3v-convomux-0.1.0.tgz`, `SHA256SUMS`, this guide, RELEASING.md and DEPENDENCY_NOTICES.md. Artifact retention is finite; use the current successful run linked by the PR. No GitHub Release was published.
+1. Open the artifact download linked in the draft PR's description. Sign in to GitHub if asked; public repository Actions artifact downloads require a signed-in account. Download **convomux-package**, then unzip it with the ordinary OS archive tool. The ZIP contains `ray-d3v-convomux-0.1.0.tgz`, `SHA256SUMS`, this guide, RELEASING.md, DEPENDENCY_NOTICES.md and CREDENTIAL_STORAGE.md. Artifact retention is finite; use the current successful run linked by the PR. No GitHub Release was published.
 2. Open a terminal in the extracted folder. Compare SHA256SUMS with the exact digest in the PR description, then verify the actual tgz. Do not run a downloaded installer script.
 
 PowerShell:
@@ -37,6 +37,8 @@ npm install -g --prefix "$env:LOCALAPPDATA\npm" --ignore-scripts .\ray-d3v-convo
 
 Put that prefix on the user PATH if necessary. On POSIX use `--prefix "$HOME/.local"` and put `$HOME/.local/bin` on PATH. This PATH entry is for cmx/Node, never for teams/slk. Administrator/sudo installation is not the default procedure.
 
-The candidate has native packaging checks for Windows x64, macOS arm64/x64 and Linux x64/arm64. Help/version checks do not establish live login. Slack browser login needs a discoverable installed Chrome/Chromium and an interactive desktop; Windows native runtime requirements and upstream plaintext credential fallback are documented in README/SECURITY. Complete authorized SSO/MFA personally. Do not submit tokens or profile files to the PR.
+The candidate has native packaging checks for Windows x64, macOS arm64/x64 and Linux x64/arm64. Help/version checks do not establish live login. Before considering Slack use, run `cmx doctor --storage --json`: exit **1** is intentional and means storage/routing safety cannot be certified. This command reads no accounts/credentials/OS stores and makes no network or backend calls. [Storage evidence and policy choices](CREDENTIAL_STORAGE.md) explain Windows mock persistence, Linux volatile keyutils, macOS Keychain, plaintext fallback and the possible active-profile fallback. **Do not use this backend where OS-only storage or strict account routing is required.** Existing read/login behavior is retained for compatibility pending the owner's policy/backend decision. An ordinary doctor success does not remove these limitations.
+
+Slack browser login additionally needs a discoverable installed Chrome/Chromium and an interactive desktop; minimal Windows runtime requirements remain in README/SECURITY. Real login/SSO/MFA and endpoint storage require separately authorized validation; none was performed in this task. Do not submit tokens or profile files to the PR.
 
 After the owner actually publishes and confirms the final npm name, registry installation/update will use `npm install -g <confirmed-package-name>@latest`. The task does not perform publication. See [release owner steps](RELEASING.md) and [dependency notice evidence](DEPENDENCY_NOTICES.md).

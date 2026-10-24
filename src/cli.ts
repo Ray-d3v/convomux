@@ -5,6 +5,7 @@ import { resolve } from 'node:path'
 import { realpathSync } from 'node:fs'
 import { packageInfo } from './package.js'
 import { checkForUpdates } from './updates.js'
+import { inspectBundledSlackStorage } from './storage.js'
 import { Adapter, collect, filterMessages, search } from './adapters.js'
 import { accountFor, addAccount, changeConfig, configPath, readConfig, selectAccounts } from './config.js'
 import { run, type RunOptions } from './process.js'
@@ -22,6 +23,7 @@ Usage: cmx <command> [options]
   login teams [--name work] [--profile work] [--tenant ID]
   login slack --workspace company [--name work]
   doctor [--source all|teams|slack]           Validate configured sessions
+  doctor --storage                          Offline bundled Slack storage diagnosis
   channels [--source all|teams|slack]        List channels
   chats [--source all|teams|slack]           List DM/group conversations
   messages <ref> [--limit 100] [--cursor C]  Fetch one bounded page
@@ -53,7 +55,7 @@ const ALLOWED: Record<string, string[]> = {
   init: [], 'config path': [], 'account list': [],
   'account add': ['name', 'profile', 'workspace', 'executable'],
   login: ['name', 'profile', 'workspace', 'tenant', 'executable', 'timeout'],
-  doctor: ['source', 'account', 'timeout'],
+  doctor: ['source', 'account', 'timeout', 'storage'],
   channels: ['source', 'account', 'limit', 'cursor', 'timeout'],
   chats: ['source', 'account', 'limit', 'cursor', 'timeout'],
   messages: ['limit', 'cursor', 'since', 'until', 'timeout'],
@@ -64,7 +66,7 @@ const ALLOWED: Record<string, string[]> = {
 function argumentsFor(argv: string[]): { values: Record<string, string | boolean | undefined>; positionals: string[]; command: string } {
   let parsed
   try {
-    parsed = parseArgs({ args: argv, options: { ...OPTIONS, json: { type: 'boolean' }, help: { type: 'boolean', short: 'h' }, version: { type: 'boolean', short: 'V' } }, allowPositionals: true, strict: true })
+    parsed = parseArgs({ args: argv, options: { ...OPTIONS, json: { type: 'boolean' }, storage: { type: 'boolean' }, help: { type: 'boolean', short: 'h' }, version: { type: 'boolean', short: 'V' } }, allowPositionals: true, strict: true })
   } catch { return fail('USAGE', 'Unknown option or missing option value. Run cmx --help. Do not pass credentials as arguments.') }
   const values = parsed.values as Record<string, string | boolean | undefined>
   const positionals = parsed.positionals
@@ -94,6 +96,11 @@ export async function dispatch(argv: string[], signal?: AbortSignal): Promise<Re
   if (values.help) return { help: HELP }
   if (values.version) return values.json ? result([{ version: packageInfo.version }]) : { help: packageInfo.version + '\n' }
   const opt = (key: string): string | undefined => typeof values[key] === 'string' ? values[key] : undefined
+  if (command === 'doctor' && values.storage) {
+    expected(args, 1)
+    if (values.account !== undefined || values.config !== undefined || values.timeout !== undefined || values.source !== undefined && values.source !== 'slack') return fail('USAGE', 'doctor --storage covers only the bundled Slack build; omit account/config/timeout and use --source slack or no source option. It does not inspect configured accounts or overrides.')
+    return inspectBundledSlackStorage()
+  }
   const path = configPath(opt('config'))
   const options: RunOptions = { timeout: positive(opt('timeout'), 30000, 300000), ...(signal ? { signal } : {}) }
   if (command === 'config path') { expected(args, 2); return result([{ path }]) }
@@ -107,6 +114,7 @@ export async function dispatch(argv: string[], signal?: AbortSignal): Promise<Re
     const account = accountOptions(args.at(-1)!, values)
     if (command === 'login') {
       if (values.json || !process.stdin.isTTY || !process.stderr.isTTY) return fail('USAGE', 'Login requires an interactive terminal and does not support --json. No credential was requested.')
+      if (account.source === 'slack' && !account.executable) process.stderr.write(`[storage] ${inspectBundledSlackStorage().errors[0]!.message} Run cmx doctor --storage for offline details.\n`)
       const existing = await readConfig(path, true)
       const binding = existing.accounts.find(a => a.source === account.source && a.name === account.name)
       if (binding && (account.source === 'teams' ? JSON.stringify(binding) !== JSON.stringify(account) : binding.executable !== account.executable)) return fail('CONFIG', 'The account name already maps to another profile/executable. Use its existing mapping or a new name.')
@@ -191,7 +199,7 @@ export function render(value: Result<unknown>, json: boolean): void {
   for (const e of value.errors) process.stderr.write(terminal(`[${e.code}] ${e.source ? e.source + '/' + e.account + ': ' : ''}${e.message}\n`))
 }
 export async function main(argv = process.argv.slice(2)): Promise<void> {
-  checkForUpdates(argv)
+  if (!argv.includes('--storage')) checkForUpdates(argv)
   const controller = new AbortController()
   const abort = (): void => controller.abort()
   process.on('SIGINT', abort)

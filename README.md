@@ -36,6 +36,8 @@ Windows上流バイナリには `VCRUNTIME140.dll` / Windows UCRT の実行要�
 
 ## 初回ログインと前提条件
 
+Slack を検討する前に `cmx doctor --storage --json` で同梱版の制約を確認してください。これは設定・アカウント・資格情報・OS 保存庫を読まず、通信やバックエンド起動もしない診断です。**終了コード1は意図した結果**で、安全な保存やアカウント分離を確認できた意味ではありません。通常の `doctor` 成功とも別です。[保存仕様の根拠と公開前の判断事項](docs/CREDENTIAL_STORAGE.md)を先に確認してください。OS の安全な保存のみ、または厳密なアカウント選択が必須の環境では、この slk 版を利用しないでください。
+
 ```sh
 cmx login teams --name work --profile work
 # テナントを指定する場合
@@ -48,7 +50,7 @@ cmx doctor --json
 
 Slackのブラウザーログインには、上流が検出できるChrome/Chromiumと対話デスクトップが必要です。cmxはブラウザーを追加取得しません。上流はブラウザーのタイトル等から保存ワークスペース名を決めるため、サブドメインと異なる場合があります。cmxはログインのJSON応答で返された安全な保存名を登録します。既存の別アカウントへの付替えは拒否します。
 
-資格情報保存は上流の責任範囲です。Teamsは `~/.teams-cli/` にJSONを保存します。固定したslk版はmacOS/Linuxのkeyringを試みますが、失敗時は**平文の `cred_<workspace>.json`** に保存します（Unixでは0600）。ソースの「encrypted」コメントとは動作が異なり、Windows native keyringのビルド機能も有効ではありません。Windows DPAPIによる既存セッション抽出も未対応です。バイナリのhelp/version起動を、認証や安全な資格情報保存の確認として扱わないでください。[SECURITY.md](SECURITY.md)も参照してください。
+資格情報保存は上流の責任範囲です。Teamsは `~/.teams-cli/` にJSONを保存します。固定したslkは **Windowsではエントリ内だけの mock 保存**で、ログイン成功でも永続化されません。Linuxは再起動・期限で失われるカーネル keyutils、macOSはKeychainです。保存処理のエラー時には平文JSONへ書き込み、読込エラー時には既存の平文JSONを読み得ます。Unixの0600設定は書込後で、暗号化ではありません。平文フォールバックを禁止するスイッチはありません。さらに、要求プロファイルの読込失敗時に上流の別の active プロファイルへ切り替わる場合があります。cmxはログイン前にstderrへ警告し、既存の読込・ログイン動作は所有者の方針判断まで維持しています。安全性を保証する修正が完了したとは扱わないでください。Windows DPAPIによる既存セッション抽出も未対応です。[詳細な条件と選択肢](docs/CREDENTIAL_STORAGE.md)、[SECURITY.md](SECURITY.md)を参照してください。
 
 すでに上流の保存プロファイルがある場合は、再認証せず登録できます。
 
@@ -126,6 +128,7 @@ cmx channels --source slack --account work --cursor "<nextCursor>" --json
 各バックエンド呼出は標準30秒（`--timeout` はミリ秒、最大300000）、出力最大8MiB。集約最大32MiB、32アカウント・100追跡会話までです。常駐同期・メッセージキャッシュはありません。人間向け出力は端末エスケープを除去しますが、JSON利用側は会話本文を信頼できないデータとして扱ってください。
 
 - `DEPENDENCY_MISSING`: 正しいtgzを再導入するか、明示指定の絶対パスを確認。
+- `CREDENTIAL_STORAGE_UNSUPPORTED` / `CREDENTIAL_STORAGE_UNVERIFIED`: `doctor --storage` の意図した非ゼロ診断。同梱slkの保存・アカウント選択を安全と認定できません。既存情報の削除や再ログインでは解消を保証できません。[上流修正と利用方針の判断](docs/CREDENTIAL_STORAGE.md)を確認してください。
 - `UNSUPPORTED`: 同梱対象OS/CPUまたは機能の範囲を確認。アーキテクチャの自動代替はしません。
 - `AUTHENTICATION` / `FORBIDDEN`: 本人の端末で再ログイン、または組織・アカウントの権限確認。制限は回避しません。
 - `INVALID_RESPONSE`: 固定バックエンドとの契約を確認。生の認証・応答情報はIssueへ貼らないでください。

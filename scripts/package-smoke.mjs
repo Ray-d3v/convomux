@@ -43,7 +43,7 @@ for (const [target, artifact] of Object.entries(contracts.slack.artifacts)) {
   if (!target.startsWith('win32')) assert.ok(modes.get(`package/vendor/slk/${target}/${artifact.binary}`)&0o111,`Unix executable mode missing: ${target}; use the Linux CI artifact`)
 }
 for (const [license, hash] of Object.entries(contracts.licenses)) assert.equal(sha256(entries.get(`package/vendor/licenses/${license}`)), hash)
-for (const file of ['dist/cli.js','dist/update-worker.js','node_modules/msteams/dist/cli/index.mjs','node_modules/msteams/LICENSE','THIRD_PARTY_NOTICES.md','backend-contracts.json','docs/INSTALL_CANDIDATE.md','docs/DEPENDENCY_NOTICES.md']) assert.ok(entries.has(`package/${file}`), `Missing packed file: ${file}`)
+for (const file of ['dist/cli.js','dist/storage.js','dist/update-worker.js','node_modules/msteams/dist/cli/index.mjs','node_modules/msteams/LICENSE','THIRD_PARTY_NOTICES.md','backend-contracts.json','docs/INSTALL_CANDIDATE.md','docs/DEPENDENCY_NOTICES.md','docs/CREDENTIAL_STORAGE.md']) assert.ok(entries.has(`package/${file}`), `Missing packed file: ${file}`)
 assert.ok(![...entries.keys()].some(name => /(?:^|\/)(?:\.env|config\.local\.json|credentials.*\.json|\.upstream|\.git)(?:\/|$)/.test(name)))
 
 const temporary = await mkdtemp(join(tmpdir(), 'cmx 配布 '))
@@ -64,6 +64,14 @@ try {
     const cli = join(installed,'dist','cli.js')
     assert.equal(command(process.execPath,[cli,'--version'],{env}).trim(),metadata.version)
     assert.match(command(process.execPath,[cli,'--help'],{env}),/ConvoMux/)
+    const storage = spawnSync(process.execPath,[cli,'doctor','--storage','--json'],{env,encoding:'utf8',shell:false,timeout:10000})
+    assert.equal(storage.error,undefined)
+    assert.equal(storage.status,1,storage.stderr)
+    const diagnosis = JSON.parse(storage.stdout)
+    assert.equal(diagnosis.ok,false)
+    assert.equal(diagnosis.data[0].secureStorageVerified,false)
+    assert.equal(diagnosis.data[0].accountRoutingVerified,false)
+    assert.equal(diagnosis.data[0].target,`${process.platform}-${process.arch}`)
     const { resolveExecutable } = await import(pathToFileURL(join(installed,'dist','process.js')).href)
     for (const source of ['teams','slack']) {
       const invocation = await resolveExecutable({source,name:'synthetic',profile:'synthetic'})
@@ -88,7 +96,7 @@ try {
   console.log(`PASS ${process.platform}/${process.arch}, Node ${process.versions.node}: offline local/global --ignore-scripts install, cmx shim, real Teams help, real slk help/version, missing backend diagnostic; spaces/Japanese paths`)
   if(!supplied){
     await writeFile(join(dirname(tgz),'SHA256SUMS'),`${tarballDigest}  ${basename(tgz)}\n`)
-    for(const [source,destination] of [['INSTALL_CANDIDATE','INSTALL'],['INSTALL_CANDIDATE','INSTALL_CANDIDATE'],['RELEASING','RELEASING'],['DEPENDENCY_NOTICES','DEPENDENCY_NOTICES']]){
+    for(const [source,destination] of [['INSTALL_CANDIDATE','INSTALL'],['INSTALL_CANDIDATE','INSTALL_CANDIDATE'],['RELEASING','RELEASING'],['DEPENDENCY_NOTICES','DEPENDENCY_NOTICES'],['CREDENTIAL_STORAGE','CREDENTIAL_STORAGE']]){
       await writeFile(join(dirname(tgz),destination+'.md'),await readFile(new URL('../docs/'+source+'.md',import.meta.url),'utf8'))
     }
   }

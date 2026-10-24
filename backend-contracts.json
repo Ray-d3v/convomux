@@ -33,10 +33,42 @@
       "src/cli/messages.rs",
       "src/auth/browser_login.rs",
       "src/auth/keyring.rs",
+      "src/auth/mod.rs",
+      "src/config/mod.rs",
       "Cargo.toml",
       ".github/workflows/release.yml"
     ],
-    "requirements": "Browser login requires installed discoverable Chrome/Chromium and interactive desktop. cmx downloads no browser. Keyring features are apple-native/linux-native, not windows-native; fallback actually writes plaintext cred_<workspace>.json (Unix 0600), despite encrypted-file comments. Browser login stores service-returned display name, which may differ from subdomain. Live login/storage remains unverified.",
+    "requirements": "Browser login requires installed discoverable Chrome/Chromium and interactive desktop. cmx downloads no browser. Windows uses entry-local mock storage, Linux kernel keyutils is volatile, macOS uses Keychain. OS-store errors permit plaintext credential read/write and a requested-profile load error may select profiles.active instead. No keyring-only switch exists. See docs/CREDENTIAL_STORAGE.md; live login/storage remains unverified. Browser login stores service-returned display name, which may differ from subdomain.",
+    "credentialStorage": {
+      "keyring": {
+        "version": "3.6.3",
+        "crateUrl": "https://static.crates.io/crates/keyring/keyring-3.6.3.crate",
+        "sha256": "eebcc3aff044e5944a8fbaf69eb277d11986064cba30c468730e8b9909fb551c",
+        "enabledFeatures": ["apple-native", "linux-native"],
+        "disabledFeaturesOfInterest": ["windows-native", "sync-secret-service", "async-secret-service", "linux-native-sync-persistent", "linux-native-async-persistent"],
+        "windowsDefault": "entry-local-mock; no persistence across Entry objects",
+        "linuxDefault": "volatile kernel keyutils; reboot/expiry clears credentials",
+        "macosDefault": "Keychain; endpoint availability/permissions unverified"
+      },
+      "plaintextWriteOn": ["Entry::new error", "set_password error"],
+      "plaintextReadOn": ["Entry::new error", "get_password error including NoEntry"],
+      "writePermissions": "Unix chmod 0600 occurs after plaintext write; no rollback on chmod failure",
+      "oldPlaintextRemovedOnSuccessfulStore": false,
+      "fallbackDisableSwitch": false,
+      "requestedProfileLoadError": "resolve_credentials ignores the error and attempts profiles.active",
+      "releaseBinaryMarkers": {"win32-x64": "MockCredential", "linux-x64": "KeyutilsCredential", "darwin-arm64": "MacCredential"},
+      "windowsOfflineReproduction": {
+        "binarySha256Verified": true,
+        "nativeStoreInvoked": false,
+        "realAccountsOrCredentialsRead": false,
+        "realAuthenticationOrServiceCalls": false,
+        "loopbackOnly": true,
+        "plaintextFixtureUsedWhenRequestedProfileMissing": true,
+        "activeProfileFallbackObserved": true,
+        "noCredentialFixtureCausedFailureWithoutRequest": true
+      },
+      "scope": "Pinned source/package analysis and isolated Windows mock-build reproduction, not live endpoint certification. cmx doctor --storage fails closed as a diagnostic; ordinary commands remain compatible pending policy/backend decision."
+    },
     "license": "MIT in release Cargo.toml; LICENSE text added upstream at previousSourceRevision, absent from release tag/archives",
     "artifacts": {
       "win32-x64": {
