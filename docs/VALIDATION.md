@@ -1,5 +1,11 @@
 # Validation record (2026-10-24)
 
+## Approved Slack stop follow-up
+
+The user approved stopping affected Slack login/read operations while a secure backend is prepared. The guard is applied before backend resolution/spawning and before login configuration access, including custom executable overrides, with no environment bypass. Teams, help/version, metadata registration and offline storage diagnosis remain available. Regression expectations now verify mixed-source partial failure instead of invoking unverified Slack mocks; adapter-level Slack pagination/JSON tests remain intact. The former delegated-login binding test is replaced by a sentinel test proving blocked login/read never executes an override or modifies existing synthetic configuration. The generic invalid-JSON runner test uses Teams so it still exercises that boundary. npm run check passed 45 tests (43 pass, 2 existing Windows skips) after this change.
+
+Latest upstream main is `66c0f26492cb049ea287f6463d8a19eb97ec7cb9` (8 commits after v0.2.0); all three storage/resolver/config Git blobs are identical to the pinned Release. Only main is publicly listed and there are no open upstream PRs. Nine exact source/manifest/license/workflow files were downloaded and Git-blob verified into the task's convomux-upstream-review evidence directory. Main LICENSE exactly matches the already vendored MIT text. No fixed replacement was found; no dependency was replaced, upstream issue/PR sent, real account accessed or publication performed by this research.
+
 - MSI checkout: `C:\Users\arare\Desktop\dev\convomux`; starting HEAD `712119d`, clean, equal to origin/main. C: free 12.47 GiB at start. No other project or cache was deleted. Branch `feat/all-in-one-distribution`.
 - Related `.agents/skills` directories were checked. Repository has no scoped skills; user skills ai-elements/find-skills do not apply. Root AGENTS.md, README, SECURITY and CI were read; CONTRIBUTING.md is absent. test-audit authoring gate was used for new tests.
 - msteams actual npm 0.2.1 metadata, installed entry/files and license inspected. CLI entry is ESM-only; resolution must use import.meta.resolve, not CommonJS require.resolve. Source contracts remain pinned to `04721b476a200e71e0da8d4958e27385d4787e7b`.

@@ -3,6 +3,7 @@ import { access, stat } from 'node:fs/promises'
 import { constants } from 'node:fs'
 import { extname, isAbsolute } from 'node:path'
 import { bundledBackend } from './backends.js'
+import { requireSafeSlackBackend } from './storage.js'
 import { CmxError, fail, type Account } from './model.js'
 
 export interface Invocation { command: string; args: string[] }
@@ -81,6 +82,7 @@ export async function execute(invocation: Invocation, args: string[], options: R
   })
 }
 export const run: Runner = async (account, args, options) => {
+  requireSafeSlackBackend(account.source)
   const output = await execute(await resolveExecutable(account), args, options)
   if (options.interactive && !options.captureInteractiveOutput) return null
   try { return JSON.parse(output) as unknown } catch { return fail('INVALID_RESPONSE', 'Backend did not return valid JSON. No raw output has been printed.') }

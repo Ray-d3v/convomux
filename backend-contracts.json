@@ -40,6 +40,7 @@
     ],
     "requirements": "Browser login requires installed discoverable Chrome/Chromium and interactive desktop. cmx downloads no browser. Windows uses entry-local mock storage, Linux kernel keyutils is volatile, macOS uses Keychain. OS-store errors permit plaintext credential read/write and a requested-profile load error may select profiles.active instead. No keyring-only switch exists. See docs/CREDENTIAL_STORAGE.md; live login/storage remains unverified. Browser login stores service-returned display name, which may differ from subdomain.",
     "credentialStorage": {
+      "cmxAccessPolicy": "Blocked for Slack login and reads, including executable overrides, until a secure persistent OS-store/strict-profile backend is verified and supplied. No environment bypass.",
       "keyring": {
         "version": "3.6.3",
         "crateUrl": "https://static.crates.io/crates/keyring/keyring-3.6.3.crate",

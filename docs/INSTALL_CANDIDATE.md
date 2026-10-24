@@ -2,6 +2,8 @@
 
 This is an unpublished review candidate. The npm registry package name is not advertised as available. Node.js 22/24 and npm are required; the package includes the fixed Teams/Slack components. You do not install teams/slk, Rust, Bun or Git or compile anything.
 
+Slack login and read operations currently return CREDENTIAL_STORAGE_BLOCKED until a secure patched backend is verified and supplied, including executable overrides. Teams and offline help/version/storage diagnosis remain available. Do not invoke the old bundled slk directly to bypass this stop; it retains the documented upstream flaws. Existing credential data is not changed by the stop.
+
 1. Open the artifact download linked in the draft PR's description. Sign in to GitHub if asked; public repository Actions artifact downloads require a signed-in account. Download **convomux-package**, then unzip it with the ordinary OS archive tool. The ZIP contains `ray-d3v-convomux-0.1.0.tgz`, `SHA256SUMS`, this guide, RELEASING.md, DEPENDENCY_NOTICES.md and CREDENTIAL_STORAGE.md. Artifact retention is finite; use the current successful run linked by the PR. No GitHub Release was published.
 2. Open a terminal in the extracted folder. Compare SHA256SUMS with the exact digest in the PR description, then verify the actual tgz. Do not run a downloaded installer script.
 

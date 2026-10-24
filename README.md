@@ -1,5 +1,7 @@
 # ConvoMux
 
+**Slack のログイン・読込は修正版の検証・提供まで停止中です。** `CREDENTIAL_STORAGE_BLOCKED` を返し、実行ファイルの override でも回避しません。Teams、help/version、設定登録、オフライン保存診断は利用できます。混在コマンドは Teams の結果と Slack の部分失敗を返します。既存の資格情報は読み取り・移行・削除しません。
+
 Teams / Slack をひとつのコマンド `cmx` から読む、ローカルの読み取り専用CLIです。認証・非公式APIは既存の msteams / slk に委譲します。AI、BYOK、Copilot、MCP、メッセージ送信・編集・削除は提供しません。
 
 **v0.1.0 / experimental、npm未公開。** Node.js 22 / 24 と npm が必要です。所有者が公開名・ライセンスを確定して公開するまでは、下記の検証済みローカルtgzを使います。実アカウントのログイン・SSO・MFAは本人が行う前提で、CIの成功は実ログイン成功を意味しません。

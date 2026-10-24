@@ -5,7 +5,7 @@ import { resolve } from 'node:path'
 import { realpathSync } from 'node:fs'
 import { packageInfo } from './package.js'
 import { checkForUpdates } from './updates.js'
-import { inspectBundledSlackStorage } from './storage.js'
+import { inspectBundledSlackStorage, requireSafeSlackBackend } from './storage.js'
 import { Adapter, collect, filterMessages, search } from './adapters.js'
 import { accountFor, addAccount, changeConfig, configPath, readConfig, selectAccounts } from './config.js'
 import { run, type RunOptions } from './process.js'
@@ -113,8 +113,8 @@ export async function dispatch(argv: string[], signal?: AbortSignal): Promise<Re
     expected(args, command === 'login' ? 2 : 3)
     const account = accountOptions(args.at(-1)!, values)
     if (command === 'login') {
+      requireSafeSlackBackend(account.source)
       if (values.json || !process.stdin.isTTY || !process.stderr.isTTY) return fail('USAGE', 'Login requires an interactive terminal and does not support --json. No credential was requested.')
-      if (account.source === 'slack' && !account.executable) process.stderr.write(`[storage] ${inspectBundledSlackStorage().errors[0]!.message} Run cmx doctor --storage for offline details.\n`)
       const existing = await readConfig(path, true)
       const binding = existing.accounts.find(a => a.source === account.source && a.name === account.name)
       if (binding && (account.source === 'teams' ? JSON.stringify(binding) !== JSON.stringify(account) : binding.executable !== account.executable)) return fail('CONFIG', 'The account name already maps to another profile/executable. Use its existing mapping or a new name.')

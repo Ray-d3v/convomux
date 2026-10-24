@@ -174,7 +174,7 @@ test('runner handles aborted operations and invalid JSON safely', async t => {
   await assert.rejects(execute({ command: process.execPath, args: [] }, [], { timeout: 100, signal: c.signal }), fails('INTERRUPTED'))
   const file = join(await temporary(t), 'backend.mjs')
   await writeFile(file, 'console.log("SECRET invalid json")')
-  await assert.rejects(run({ ...slack, executable: file }, [], { timeout: 3000 }), e => e.code === 'INVALID_RESPONSE' && !e.message.includes('SECRET'))
+  await assert.rejects(run({ ...teams, executable: file }, [], { timeout: 3000 }), e => e.code === 'INVALID_RESPONSE' && !e.message.includes('SECRET'))
 })
 test('environment overrides cannot silently select a different account or endpoint', () => {
   const keys = ['SLK_TOKEN', 'SLK_COOKIE', 'SLK_WORKSPACE', 'SLK_API_BASE_URL', 'ESTSAUTHPERSISTENT', 'REFRESH_TOKEN']

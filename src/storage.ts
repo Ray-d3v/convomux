@@ -1,5 +1,12 @@
 import { slackTarget } from './backends.js'
-import { result, type Result } from './model.js'
+import { fail, result, type Result, type Source } from './model.js'
+
+// No bundled or custom Slack executable has yet been verified against the
+// secure persistence + strict requested-profile contract. No environment or
+// executable-path bypass: this gate precedes backend resolution and spawning.
+export function requireSafeSlackBackend(source: Source): void {
+  if (source === 'slack') fail('CREDENTIAL_STORAGE_BLOCKED', 'Slack login and reads are disabled until a backend with secure persistent OS storage and strict requested-account routing is verified. Existing credentials were not accessed or changed. Teams and offline doctor --storage remain available.')
+}
 
 interface SlackStorageAssessment {
   source: 'slack'; backend: 'slk'; version: '0.2.0'; keyringVersion: '3.6.3'
@@ -11,6 +18,7 @@ interface SlackStorageAssessment {
   plaintextFallbackCanBeDisabled: false
   requestedProfileLoadError: 'may-use-active-profile'
   accountOrCredentialStoresAccessed: false; networkOrBackendCalls: false
+  accessBlocked: true
 }
 
 // Source/feature facts for the fixed binary contract. This never probes an OS
@@ -27,6 +35,7 @@ export function inspectBundledSlackStorage(platform: string = process.platform, 
     secureStorageVerified: false, accountRoutingVerified: false,
     plaintextFallbackCanBeDisabled: false, requestedProfileLoadError: 'may-use-active-profile',
     accountOrCredentialStoresAccessed: false, networkOrBackendCalls: false,
+    accessBlocked: true,
   }
   const message = windows
     ? 'Bundled slk 0.2.0 uses an entry-local mock on Windows, so login success does not establish persisted credentials. Reads can use a plaintext file or another active profile after a requested-profile load error. Secure storage and account routing are not verified.'
