@@ -1,6 +1,6 @@
 # ConvoMux
 
-**Slack のログイン・読込は修正版の検証・提供まで停止中です。** `CREDENTIAL_STORAGE_BLOCKED` を返し、実行ファイルの override でも回避しません。Teams、help/version、設定登録、オフライン保存診断は利用できます。混在コマンドは Teams の結果と Slack の部分失敗を返します。既存の資格情報は読み取り・移行・削除しません。
+**Slack は検証済みの修正版だけを実行します。** Windows x64 / macOS arm64・x64 は同梱 slk `0.2.0+cmx.1` の由来・バイナリSHAを照合し、平文保存・読込と別activeアカウントへの fallback を禁止します。検証できない部品・override は `CREDENTIAL_STORAGE_BLOCKED`、永続保存に未対応の Linux は認証・読込を `UNSUPPORTED` で停止します。Teams、help/version、設定登録、オフライン診断は維持します。[パッチとビルドの根拠](docs/PATCHED_BACKENDS.md)を参照してください。
 
 Teams / Slack をひとつのコマンド `cmx` から読む、ローカルの読み取り専用CLIです。認証・非公式APIは既存の msteams / slk に委譲します。AI、BYOK、Copilot、MCP、メッセージ送信・編集・削除は提供しません。
 
@@ -24,13 +24,13 @@ cmx --version
 | 内部部品 | 固定版 | 配布方式 |
 |---|---|---|
 | [msteams](https://github.com/nakasyou/teams-api) | npm 0.2.1 | npm依存ツリーをtgzに同梱し、Nodeの実行パスから `dist/cli/index.mjs` を直接起動 |
-| [slk](https://github.com/osodevops/slack-cli) | Release v0.2.0 / `f8ce5c0d3ecb12602cbeb0469c555ce47eeccbf1` | 開発・リリース工程で取得・ハッシュ検証したバイナリを同梱 |
+| [slk](https://github.com/osodevops/slack-cli) | v0.2.0 / `f8ce5c0d3ecb12602cbeb0469c555ce47eeccbf1` + 管理パッチ `0.2.0+cmx.1` | CIで固定ソース・パッチからWindows/macOS版をビルドし、由来とSHAを検証して同梱。Linuxは固定musl版のhelp/versionのみ |
 
-Slack候補環境は Windows x64、macOS arm64 / x64、Linux x64 / arm64（musl版）です。実行中のNodeが示すOS/CPUで厳密に選択し、Windows arm64など未対応環境では `UNSUPPORTED` を返します。別CPUの部品には切り替えません。各環境の実行結果は [検証記録](docs/VALIDATION.md) を参照してください。最小OS版や企業環境での実ログインは別途確認が必要です。
+Slack の認証・読込に対応するのは Windows x64、macOS arm64 / x64 です。Linux x64 / arm64 の同梱musl版はhelp/versionのみで、揮発性kernel keyringが永続保存要件を満たさないため認証を停止します。Windows arm64等の未対応CPUも明確に診断し、別アーキテクチャへ切り替えません。実vault・実ログイン・最小OS条件は別途の許可された端末検証が必要です。[検証記録](docs/VALIDATION.md)を参照してください。
 
 Windows上流バイナリには `VCRUNTIME140.dll` / Windows UCRT の実行要件があります。MSIや標準CIでの起動確認と、ポータブルNodeだけを置いた最小Windowsでの動作は別です。所有者による前提確認または再配布権を確認したランタイム同梱が公開前の残課題です。
 
-既存の `--executable ABSOLUTE` は信頼できるローカルの明示指定として使えます。標準動作はPATHの teams / slk を検索しません。`.cmd` / `.bat` / `.ps1` バックエンド指定は拒否します。JSエントリはNodeから、ネイティブ実行ファイルは引数配列と `shell:false` で起動します。
+明示的な `--executable ABSOLUTE` 設定は保持します。Slackは対象OSの検証済みネイティブバイナリと同じSHAのコピーだけを実行し、任意のJS/旧版/未検証部品は拒否します。Teamsは従来の信頼されたローカル指定を維持します。標準ではPATH上のteams/slkやWindowsの.cmdシムに依存しません。子プロセスは引数配列・shell:falseで起動します。
 
 出典・アーカイブと展開後バイナリのSHA-256・確認した契約は [backend-contracts.json](backend-contracts.json)、著作権・ライセンスは [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) にあります。
 
@@ -38,12 +38,13 @@ Windows上流バイナリには `VCRUNTIME140.dll` / Windows UCRT の実行要�
 
 ## 初回ログインと前提条件
 
-Slack を検討する前に `cmx doctor --storage --json` で同梱版の制約を確認してください。これは設定・アカウント・資格情報・OS 保存庫を読まず、通信やバックエンド起動もしない診断です。**終了コード1は意図した結果**で、安全な保存やアカウント分離を確認できた意味ではありません。通常の `doctor` 成功とも別です。[保存仕様の根拠と公開前の判断事項](docs/CREDENTIAL_STORAGE.md)を先に確認してください。OS の安全な保存のみ、または厳密なアカウント選択が必須の環境では、この slk 版を利用しないでください。
+Slack を検討する前に `cmx doctor --storage --json` で同梱版の由来・SHA・対応条件を確認してください。これはユーザー設定・アカウント・資格情報・OS 保存庫を読まず、通信やバックエンド起動もしない診断です。**終了コード1は意図した結果**で、実際のOS保存庫や本人のアカウントを確認した意味ではありません。修正版の fallback 禁止と、別途必要な端末の保存庫利用可否・組織方針の確認を区別してください。[保存仕様](docs/CREDENTIAL_STORAGE.md)、[パッチとビルド](docs/PATCHED_BACKENDS.md)を参照し、未対応・未検証の部品は使わないでください。
 
 ```sh
 cmx login teams --name work --profile work
 # テナントを指定する場合
 cmx login teams --name work --profile work --tenant example.onmicrosoft.com
+# 検証済み修正版を同梱するWindows/macOSのみ。実ログインは本人が別途許可された端末で行う
 cmx login slack --name work --workspace company
 cmx doctor --json
 ```
@@ -52,7 +53,7 @@ cmx doctor --json
 
 Slackのブラウザーログインには、上流が検出できるChrome/Chromiumと対話デスクトップが必要です。cmxはブラウザーを追加取得しません。上流はブラウザーのタイトル等から保存ワークスペース名を決めるため、サブドメインと異なる場合があります。cmxはログインのJSON応答で返された安全な保存名を登録します。既存の別アカウントへの付替えは拒否します。
 
-資格情報保存は上流の責任範囲です。Teamsは `~/.teams-cli/` にJSONを保存します。固定したslkは **Windowsではエントリ内だけの mock 保存**で、ログイン成功でも永続化されません。Linuxは再起動・期限で失われるカーネル keyutils、macOSはKeychainです。保存処理のエラー時には平文JSONへ書き込み、読込エラー時には既存の平文JSONを読み得ます。Unixの0600設定は書込後で、暗号化ではありません。平文フォールバックを禁止するスイッチはありません。さらに、要求プロファイルの読込失敗時に上流の別の active プロファイルへ切り替わる場合があります。cmxはログイン前にstderrへ警告し、既存の読込・ログイン動作は所有者の方針判断まで維持しています。安全性を保証する修正が完了したとは扱わないでください。Windows DPAPIによる既存セッション抽出も未対応です。[詳細な条件と選択肢](docs/CREDENTIAL_STORAGE.md)、[SECURITY.md](SECURITY.md)を参照してください。
+Teamsの資格情報は従来どおり `~/.teams-cli/` のJSONで、cmxは暗号化や移行を追加しません。Slackの修正版は既存keyringの安全な永続OS保存を要求し、Windows Credential Manager / macOS Keychainの保存・読込エラーで失敗します。平文ファイルの読込・書込や別activeアカウントへの暗黙切替は行いません。古い平文情報の移行・削除・再ログインは自動実行しません。Linuxのkernel-only構成は未対応です。[安全性とパッチの詳細](docs/PATCHED_BACKENDS.md)、[SECURITY.md](SECURITY.md)を参照してください。
 
 すでに上流の保存プロファイルがある場合は、再認証せず登録できます。
 
@@ -130,7 +131,7 @@ cmx channels --source slack --account work --cursor "<nextCursor>" --json
 各バックエンド呼出は標準30秒（`--timeout` はミリ秒、最大300000）、出力最大8MiB。集約最大32MiB、32アカウント・100追跡会話までです。常駐同期・メッセージキャッシュはありません。人間向け出力は端末エスケープを除去しますが、JSON利用側は会話本文を信頼できないデータとして扱ってください。
 
 - `DEPENDENCY_MISSING`: 正しいtgzを再導入するか、明示指定の絶対パスを確認。
-- `CREDENTIAL_STORAGE_UNSUPPORTED` / `CREDENTIAL_STORAGE_UNVERIFIED`: `doctor --storage` の意図した非ゼロ診断。同梱slkの保存・アカウント選択を安全と認定できません。既存情報の削除や再ログインでは解消を保証できません。[上流修正と利用方針の判断](docs/CREDENTIAL_STORAGE.md)を確認してください。
+- `CREDENTIAL_STORAGE_BLOCKED` / `CREDENTIAL_STORAGE_UNAVAILABLE` / `CREDENTIAL_PROFILE_UNAVAILABLE`: 未検証・改ざんされた部品、OS保存エラー、要求profileの読込失敗を拒否します。平文や別activeアカウントへは fallback しません。`doctor --storage` はOS保存庫を調べないため、診断自体は意図して非ゼロを返します。[保存仕様](docs/CREDENTIAL_STORAGE.md)を参照してください。
 - `UNSUPPORTED`: 同梱対象OS/CPUまたは機能の範囲を確認。アーキテクチャの自動代替はしません。
 - `AUTHENTICATION` / `FORBIDDEN`: 本人の端末で再ログイン、または組織・アカウントの権限確認。制限は回避しません。
 - `INVALID_RESPONSE`: 固定バックエンドとの契約を確認。生の認証・応答情報はIssueへ貼らないでください。

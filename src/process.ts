@@ -33,6 +33,9 @@ export function backendEnvironment(): NodeJS.ProcessEnv {
   return env
 }
 export function backendError(body: string, code: number | null): CmxError {
+  if (/CMX_SECURE_STORAGE_UNSUPPORTED/u.test(body)) return new CmxError('UNSUPPORTED', 'The Slack build cannot provide secure persistent OS storage on this platform. No credential file or alternate account was attempted.')
+  if (/CMX_SECURE_PROFILE_UNAVAILABLE/u.test(body)) return new CmxError('CREDENTIAL_PROFILE_UNAVAILABLE', 'The requested Slack profile could not be loaded from the secure OS store. No plaintext file or other active account was attempted.')
+  if (/CMX_SECURE_STORAGE/u.test(body)) return new CmxError('CREDENTIAL_STORAGE_UNAVAILABLE', 'The secure OS credential operation failed. No plaintext fallback was attempted; inspect storage availability locally without sharing credentials.')
   if (/invalid_auth|not_authed|token_revoked|account_inactive|invalid_grant|login required|no credentials|no token|refresh.token.*(?:missing|expired)|profile.*not found/iu.test(body)) return new CmxError('AUTHENTICATION', 'Authentication is missing or expired. Run cmx login for this account.')
   if (/ratelimited|rate.limit|retry.after|\b429\b/iu.test(body)) return new CmxError('RATE_LIMITED', 'The service rate limit was reached. Retry later; no automatic retry was attempted.')
   if (/missing_scope|access_denied|forbidden|enterprise_is_restricted|\b403\b/iu.test(body)) return new CmxError('FORBIDDEN', 'The service denied access. Existing account or organization permissions apply.')
@@ -82,7 +85,7 @@ export async function execute(invocation: Invocation, args: string[], options: R
   })
 }
 export const run: Runner = async (account, args, options) => {
-  requireSafeSlackBackend(account.source)
+  await requireSafeSlackBackend(account)
   const output = await execute(await resolveExecutable(account), args, options)
   if (options.interactive && !options.captureInteractiveOutput) return null
   try { return JSON.parse(output) as unknown } catch { return fail('INVALID_RESPONSE', 'Backend did not return valid JSON. No raw output has been printed.') }

@@ -206,16 +206,18 @@ test('missing pagination metadata is unknown, not proof of completion', async ()
   assert.equal(page.coverage.complete, false)
   await assert.rejects(new Adapter(slack, async () => ({ ok: true, channels: [], response_metadata: { next_cursor: 123 } })).conversations('channel', 10), fails('INVALID_RESPONSE'))
 })
-test('rate-limited accounts stop making calls while other services continue', async () => {
+test('rate-limit and secure-storage failures stop account calls while other services continue', async () => {
+  for(const code of ['RATE_LIMITED','CREDENTIAL_STORAGE_BLOCKED','CREDENTIAL_STORAGE_UNAVAILABLE','CREDENTIAL_PROFILE_UNAVAILABLE','UNSUPPORTED']){
   let skippedCalled = false
   const response = await collect([
-    { account: slack, work: async () => { throw new CmxError('RATE_LIMITED', 'Retry later.') } },
+    { account: slack, work: async () => { throw new CmxError(code, 'No further account calls.') } },
     { account: slack, work: async () => { skippedCalled = true; return { data: [], coverage } } },
     { account: teams, work: async () => ({ data: ['ok'], coverage }) },
   ])
   assert.equal(skippedCalled, false)
   assert.equal(response.status, 'partial')
   assert.deepEqual(response.data, ['ok'])
+  }
 })
 test('an interrupt returns 130 even after partial results', () => {
   assert.equal(exitCode(result(['ok'], [], [{ code: 'INTERRUPTED', message: 'Interrupted.' }], 1)), 130)

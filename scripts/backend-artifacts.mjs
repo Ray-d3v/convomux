@@ -52,6 +52,7 @@ export async function downloadArtifact(artifact) {
 }
 export async function prepareBackends() {
   for (const [target, artifact] of Object.entries(contracts.slack.artifacts)) {
+    if (!target.startsWith('linux-')) continue // supplied by same-run patched builds, never the unsafe upstream binary
     const binary = await downloadArtifact(artifact)
     if (artifact.binarySha256 && sha256(binary) !== artifact.binarySha256) throw new Error(`Binary SHA-256 mismatch: ${target}`)
     const destination = new URL(`vendor/slk/${target}/`, root)
@@ -60,5 +61,7 @@ export async function prepareBackends() {
     await writeFile(path, binary); await chmod(path, 0o755)
     console.log(`Verified ${target}: ${sha256(binary)}`)
   }
+  const {installSecureBuilds}=await import('./install-secure-slk.mjs')
+  await installSecureBuilds()
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) await prepareBackends()

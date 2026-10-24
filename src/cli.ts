@@ -113,7 +113,7 @@ export async function dispatch(argv: string[], signal?: AbortSignal): Promise<Re
     expected(args, command === 'login' ? 2 : 3)
     const account = accountOptions(args.at(-1)!, values)
     if (command === 'login') {
-      requireSafeSlackBackend(account.source)
+      await requireSafeSlackBackend(account)
       if (values.json || !process.stdin.isTTY || !process.stderr.isTTY) return fail('USAGE', 'Login requires an interactive terminal and does not support --json. No credential was requested.')
       const existing = await readConfig(path, true)
       const binding = existing.accounts.find(a => a.source === account.source && a.name === account.name)

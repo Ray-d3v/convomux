@@ -13,6 +13,7 @@ function command(executable,args){const r=spawnSync(executable,args,{encoding:'u
 assert.ok(command(binary,['--version']).includes(contract.patchedVersion))
 assert.match(command(binary,['--help']),/slk|Slack/)
 const bytes=await readFile(binary),destination=join(root,'.upstream/secure-build',target)
+for(const marker of ['CMX_SECURE_STORAGE','CMX_SECURE_PROFILE_UNAVAILABLE'])assert.ok(bytes.includes(Buffer.from(marker)), 'Required patched behavior marker absent')
 await mkdir(destination,{recursive:true})
 await copyFile(binary,join(destination,filename))
 await copyFile(join(root,'vendor/licenses/slk-MIT.txt'),join(destination,'LICENSE'))
@@ -23,7 +24,7 @@ const receipt={...contract,target,triple,binary:filename,binarySha256:hash(bytes
   rustc:command('rustc',['--version','--verbose']),cargo:command('cargo',['--version']),
   build:{locked:true,release:true,lto:'thin',codegenUnits:16,incremental:false,jobs:2,pathRemapping:'/cmx-source'},
   mockStorageTestsPassed:true,nativeHelpVersionPassed:true,nativeVaultOrRealAccountsAccessed:false,
-  persistentOsStoreBuild:contract.persistentTargets.includes(target),authenticatedUseApproved:false,
+  persistentOsStoreBuild:contract.persistentTargets.includes(target),liveAuthenticationValidated:false,
 }
 await writeFile(join(destination,'provenance.json'),JSON.stringify(receipt,null,2)+'\n')
-console.log(JSON.stringify({target,binarySha256:receipt.binarySha256,version:contract.patchedVersion,persistentOsStoreBuild:receipt.persistentOsStoreBuild,authenticatedUseApproved:false}))
+console.log(JSON.stringify({target,binarySha256:receipt.binarySha256,version:contract.patchedVersion,persistentOsStoreBuild:receipt.persistentOsStoreBuild,liveAuthenticationValidated:false}))

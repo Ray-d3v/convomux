@@ -1,0 +1,34 @@
+# Upstream-derived secure Slack builds
+
+ConvoMux reuses slk authentication and keyring; it does not implement a new browser/session/auth system. No fixed public upstream replacement was found: latest v0.2.0 (`f8ce5c0d3ecb12602cbeb0469c555ce47eeccbf1`) and latest main (`66c0f26492cb049ea287f6463d8a19eb97ec7cb9`) have identical keyring, credential resolver and config path blobs. Only main and no open PRs were publicly listed on 2026-10-24.
+
+The approved interim stop is now enforced by a source/patch/provenance/binary-hash gate. It admits only the supplied verified patched Windows/macOS native binaries. Missing/corrupt/unverified builds and script overrides are blocked before backend spawning; an override is usable only if its bytes match the approved native binary for that exact target. There is no environment opt-out. Teams and authentication-free backend help/version are unaffected. Linux authenticated operations are explicitly unsupported because the pinned kernel store is not persistent.
+
+## Fixed source and minimal patch
+
+- Upstream source archive: https://codeload.github.com/osodevops/slack-cli/tar.gz/f8ce5c0d3ecb12602cbeb0469c555ce47eeccbf1 . SHA-256 `cb7b4a106b5e2ecf2e7baa6035016ac973a1e99ceea69f47bb3a52dab6b11ecf`.
+- [Patch contract](../patches/slk/contract.json) pins the source, patched version `0.2.0+cmx.1`, Rust 1.98.0, patch SHA-256 `2d1e4ce908af7c2d10d75da7d41007e6ef77422daad4ee2395ce95a36d1b70f0`, and before/after hashes for every changed file. [The patch](../patches/slk/secure-storage.patch) changes five files, including its synthetic tests.
+- keyring remains fixed at 3.6.3; windows-native is enabled alongside apple-native/linux-native. The changed lock references existing byteorder/windows-sys packages already in the 362-crate attribution inventory; no registry source package was added or upgraded.
+- CredentialStore requires keyring's `CredentialPersistence::UntilDelete` before creating an entry. Entry-local mocks, process-local storage and reboot-limited kernel storage are rejected. This capability query does not open a vault. Actual OS entry/save/load errors fail closed with static diagnostics.
+- Both plaintext write/read methods and branches are removed. Invalid OS-store JSON fails without reading a file. Requested-workspace load failure returns immediately instead of trying profiles.active. Normal active selection remains only when no workspace was requested; cmx always requests its configured workspace.
+- The auth entry checks the storage capability before a browser/login/extraction flow. Existing profile registration already follows successful credential storage. No implicit legacy-file migration, deletion, permissions change or credential copy is added. Upstream's explicit logout behavior is retained and is not exposed as a cmx command.
+
+Windows uses the existing keyring Windows Credential Manager implementation; macOS uses existing Keychain code. Windows native size limits, unavailable/denied stores and invalid credentials remain errors; oversized credentials must not be split into a homemade storage format or written to a file. Linux kernel keyutils cannot satisfy persistence, so Slack login/read is unsupported on Linux x64/arm64. Secret Service would add OS dependencies and needs separate validation before enabling Linux; it is not silently substituted.
+
+## CI and build provenance
+
+The regular reusable CI first runs Node checks, then calls secure-slk.yml. The four native jobs compile the fixed source on Windows x64, macOS arm64/x64 and Linux x64 using Rust 1.98.0 and --locked. Only the named cmx_secure Rust test runs: it installs a synthetic keyring builder and uses temporary fixtures. No native credential Entry or real account is queried. It checks entry/store errors, no plaintext writes, refusal to read an existing plaintext fixture, malformed stored JSON, strict requested-profile failure despite another active fixture, unchanged legacy fixtures and nonpersistent-provider refusal.
+
+The native release binary is then built with thin LTO, 16 codegen units, two build jobs, no incremental compilation and remapped workspace paths. Authentication-free help/version and the patched behavior markers are checked. Each target artifact carries its native binary hash/size, exact source/patch/lock/file hashes, MIT text, Rust/Cargo versions, compiler settings and workflow/run/source commit. Live authentication is explicitly unvalidated.
+
+The package job downloads these artifacts from the **same workflow run** with the existing artifact mechanism. It verifies all provenance, hashes, required test results and licenses before copying Windows/macOS files into vendor/slk. Linux retains the fixed upstream musl binaries only for help/version; cmx blocks their authenticated use. No new GitHub token scope or workflow permission is needed. The manifest `vendor/slk/secure-builds.json` and patch/contract are included in the tgz. Each authenticated cmx call checks the manifest and binary digest before spawning, including overrides.
+
+Native package jobs install the exact tgz with empty caches and --offline --ignore-scripts on all five targets and Node 22/24. They execute real cmx/Teams/slk help/version and the offline diagnosis, reject unverified script overrides and altered native bytes, and verify the provenance/license/patch hashes and Unix modes. They do not authenticate or inspect real OS stores. `BACKEND_PROVENANCE.json` is included next to the tgz and SHA256SUMS in the final downloadable artifact.
+
+## Distribution, licenses and remaining limits
+
+Rust, Git and source compilation run only in development/CI. npm users still perform one tgz/registry installation with scripts disabled and need no backend downloads/compiler or backend PATH setting. Universal distribution remains a single tgz with five native files. Ordinary Node-only source checks do not build Rust; universal release preparation uses CI or an equivalent trusted native build matrix.
+
+The MIT text for upstream slk is preserved byte-for-byte; it was added upstream after v0.2.0 and already verified against main. Component attribution and all 362 source notices remain included. This does not choose a license for ConvoMux's own contributions: private:true / UNLICENSED and npm scope rights are unchanged.
+
+Real login, SSO/MFA, endpoint store availability/access policy and minimal Windows VCRUNTIME/UCRT requirements remain separately authorized endpoint checks. Existing credentials are never automatically read for investigation, migrated, deleted or rewritten. Plaintext-only legacy profiles cannot be consumed by the patched reader; an authorized operator must decide any later reauthentication/migration independently. No upstream issue/PR, npm publication, tag, Release or merge is performed by this work.

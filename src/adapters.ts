@@ -129,7 +129,7 @@ export async function collect<T>(tasks: { account: Account; ref?: string; work: 
     const key = `${task.account.source}/${task.account.name}`
     try {
       const block = blocked.get(key)
-      if (block) throw new CmxError(block, 'Further requests for this account were skipped after an authentication or rate-limit failure.')
+      if (block) throw new CmxError(block, 'Further requests for this account were skipped after an authentication, secure-storage, platform or rate-limit failure.')
       if (exhausted) fail('NOT_ATTEMPTED', 'Not fetched because the aggregate result limit was reached.')
       const page = await task.work()
       bytes += Buffer.byteLength(JSON.stringify(page.data))
@@ -138,7 +138,7 @@ export async function collect<T>(tasks: { account: Account; ref?: string; work: 
     }
     catch (error) {
       const item = failure(error)
-      if (['AUTHENTICATION', 'RATE_LIMITED'].includes(item.code)) blocked.set(key, item.code)
+      if (['AUTHENTICATION', 'RATE_LIMITED', 'CREDENTIAL_STORAGE_BLOCKED', 'CREDENTIAL_STORAGE_UNAVAILABLE', 'CREDENTIAL_PROFILE_UNAVAILABLE'].includes(item.code) || item.code === 'UNSUPPORTED' && task.account.source === 'slack') blocked.set(key, item.code)
       errors.push({ ...item, source: task.account.source, account: task.account.name, ...(task.ref ? { ref: task.ref } : {}) })
     }
   }

@@ -28,8 +28,11 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run check
       - run: node dist/cli.js --help
-  package:
+  secure-slk:
     needs: check
+    uses: ./.github/workflows/secure-slk.yml
+  package:
+    needs: [check, secure-slk]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -40,6 +43,11 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm run build
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: secure-slk-*
+          path: .upstream/secure-build
+          merge-multiple: true
       - run: npm run backends:prepare
       - run: npm run backends:verify
       - run: npm pack

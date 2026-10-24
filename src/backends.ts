@@ -10,7 +10,7 @@ const targets: Record<string, string> = {
 }
 export function slackTarget(platform: string, arch: string): { target: string; binary: string } {
   const target = `${platform}-${arch}`, binary = targets[target]
-  if (!binary) return fail('UNSUPPORTED', `Bundled Slack is unavailable for ${target}. Supported: ${Object.keys(targets).join(', ')}. Use a trusted absolute --executable override if available.`)
+  if (!binary) return fail('UNSUPPORTED', `Bundled Slack is unavailable for ${target}. Packaged targets: ${Object.keys(targets).join(', ')}. Only a verified native build for the exact OS/CPU is admitted; no architecture fallback is used.`)
   return { target, binary }
 }
 export async function bundledBackend(source: Source, platform: string, arch: string): Promise<string> {

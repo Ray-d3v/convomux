@@ -1,9 +1,6 @@
 name: Patched Slack backend candidates
 on:
-  push:
-    paths: ['patches/slk/**', 'scripts/prepare-secure-slk.mjs', 'scripts/record-secure-slk.mjs', '.github/workflows/secure-slk.yml']
-  pull_request:
-    paths: ['patches/slk/**', 'scripts/prepare-secure-slk.mjs', 'scripts/record-secure-slk.mjs', '.github/workflows/secure-slk.yml']
+  workflow_call:
   workflow_dispatch:
 permissions:
   contents: read
@@ -49,6 +46,13 @@ jobs:
           toolchain: 1.98.0
           targets: ${{ matrix.triple }}
       - run: node scripts/prepare-secure-slk.mjs
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            .upstream/slk-target
+          key: slk-secure-${{ runner.os }}-${{ matrix.target }}-rust-1.98.0-${{ hashFiles('patches/slk/secure-storage.patch') }}
       - name: Test only synthetic credential stores; never access native vaults
         run: cargo test --manifest-path .upstream/slk-secure-source/Cargo.toml --target ${{ matrix.triple }} --locked --release --bin slk cmx_secure -- --test-threads=1
       - name: Build a native candidate without install-time compilation

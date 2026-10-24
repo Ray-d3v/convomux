@@ -40,24 +40,43 @@
     ],
     "requirements": "Browser login requires installed discoverable Chrome/Chromium and interactive desktop. cmx downloads no browser. Windows uses entry-local mock storage, Linux kernel keyutils is volatile, macOS uses Keychain. OS-store errors permit plaintext credential read/write and a requested-profile load error may select profiles.active instead. No keyring-only switch exists. See docs/CREDENTIAL_STORAGE.md; live login/storage remains unverified. Browser login stores service-returned display name, which may differ from subdomain.",
     "credentialStorage": {
-      "cmxAccessPolicy": "Blocked for Slack login and reads, including executable overrides, until a secure persistent OS-store/strict-profile backend is verified and supplied. No environment bypass.",
+      "cmxAccessPolicy": "Only verified patched native Windows/macOS bytes are admitted; unverified/missing/modified builds and overrides blocked. Linux kernel-only authentication unsupported. No environment bypass.",
       "keyring": {
         "version": "3.6.3",
         "crateUrl": "https://static.crates.io/crates/keyring/keyring-3.6.3.crate",
         "sha256": "eebcc3aff044e5944a8fbaf69eb277d11986064cba30c468730e8b9909fb551c",
-        "enabledFeatures": ["apple-native", "linux-native"],
-        "disabledFeaturesOfInterest": ["windows-native", "sync-secret-service", "async-secret-service", "linux-native-sync-persistent", "linux-native-async-persistent"],
+        "enabledFeatures": [
+          "apple-native",
+          "linux-native"
+        ],
+        "disabledFeaturesOfInterest": [
+          "windows-native",
+          "sync-secret-service",
+          "async-secret-service",
+          "linux-native-sync-persistent",
+          "linux-native-async-persistent"
+        ],
         "windowsDefault": "entry-local-mock; no persistence across Entry objects",
         "linuxDefault": "volatile kernel keyutils; reboot/expiry clears credentials",
         "macosDefault": "Keychain; endpoint availability/permissions unverified"
       },
-      "plaintextWriteOn": ["Entry::new error", "set_password error"],
-      "plaintextReadOn": ["Entry::new error", "get_password error including NoEntry"],
+      "plaintextWriteOn": [
+        "Entry::new error",
+        "set_password error"
+      ],
+      "plaintextReadOn": [
+        "Entry::new error",
+        "get_password error including NoEntry"
+      ],
       "writePermissions": "Unix chmod 0600 occurs after plaintext write; no rollback on chmod failure",
       "oldPlaintextRemovedOnSuccessfulStore": false,
       "fallbackDisableSwitch": false,
       "requestedProfileLoadError": "resolve_credentials ignores the error and attempts profiles.active",
-      "releaseBinaryMarkers": {"win32-x64": "MockCredential", "linux-x64": "KeyutilsCredential", "darwin-arm64": "MacCredential"},
+      "releaseBinaryMarkers": {
+        "win32-x64": "MockCredential",
+        "linux-x64": "KeyutilsCredential",
+        "darwin-arm64": "MacCredential"
+      },
       "windowsOfflineReproduction": {
         "binarySha256Verified": true,
         "nativeStoreInvoked": false,
@@ -68,7 +87,8 @@
         "activeProfileFallbackObserved": true,
         "noCredentialFixtureCausedFailureWithoutRequest": true
       },
-      "scope": "Pinned source/package analysis and isolated Windows mock-build reproduction, not live endpoint certification. cmx doctor --storage fails closed as a diagnostic; ordinary commands remain compatible pending policy/backend decision."
+      "scope": "Historical pinned upstream analysis and Windows mock-only reproduction. Supplied local patch removes plaintext fallback and strict-profile fallthrough. No live endpoint/store certification.",
+      "appliesTo": "Unpatched upstream v0.2.0 source/reference artifacts; supplied patched Windows/macOS behavior is recorded in localPatch and generated secure-builds manifest."
     },
     "license": "MIT in release Cargo.toml; LICENSE text added upstream at previousSourceRevision, absent from release tag/archives",
     "artifacts": {
@@ -108,7 +128,25 @@
         "binarySha256": "59791befa5caf387d5336e303e88b5b448e70223eec613ba0d8a9b9043bdfeee"
       }
     },
-    "cargoLockSha256": "55de689146701de500b7f54c8665f64f6ad8b6dac92fa54618ae28f7780aecb5"
+    "cargoLockSha256": "55de689146701de500b7f54c8665f64f6ad8b6dac92fa54618ae28f7780aecb5",
+    "localPatch": {
+      "version": "0.2.0+cmx.1",
+      "contract": "patches/slk/contract.json",
+      "patch": "patches/slk/secure-storage.patch",
+      "patchSha256": "2d1e4ce908af7c2d10d75da7d41007e6ef77422daad4ee2395ce95a36d1b70f0",
+      "sourceArchiveSha256": "cb7b4a106b5e2ecf2e7baa6035016ac973a1e99ceea69f47bb3a52dab6b11ecf",
+      "persistentTargets": [
+        "win32-x64",
+        "darwin-arm64",
+        "darwin-x64"
+      ],
+      "unsupportedAuthenticatedTargets": [
+        "linux-x64",
+        "linux-arm64"
+      ],
+      "binaryHashesAndBuildProvenance": "vendor/slk/secure-builds.json generated and verified by the same CI run; BACKEND_PROVENANCE.json beside tgz",
+      "note": "artifacts and credentialStorage below retain unpatched upstream reference evidence; Windows/macOS release bytes are replaced only by source/patch/hash-verified native builds"
+    }
   },
   "licenses": {
     "msteams-MIT.txt": "cf82af2a075a1712c86ce26bf8657341e7b1d2dddcdc4f63dba05e0574f0185b",

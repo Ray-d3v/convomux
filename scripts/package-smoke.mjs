@@ -6,6 +6,7 @@ import { join, resolve, relative, isAbsolute, sep, dirname, basename } from 'nod
 import { pathToFileURL, fileURLToPath } from 'node:url'
 import { list } from 'tar'
 import { contracts, sha256 } from './backend-artifacts.mjs'
+import {secureSlkContract,validateSecureBuild} from '../dist/secure-slk.js'
 
 const root = fileURLToPath(new URL('../', import.meta.url)), npm = process.env.npm_execpath
 assert.ok(npm, 'Run through npm run package:smoke')
@@ -38,12 +39,17 @@ await list({ file: tgz, onReadEntry: entry => {
   entry.on('data', chunk => chunks.push(chunk))
   entry.on('end', () => entries.set(entry.path, Buffer.concat(chunks)))
 } })
+const secureManifest=JSON.parse(entries.get('package/vendor/slk/secure-builds.json'))
+assert.equal(secureManifest.schemaVersion,1)
+assert.equal(sha256(entries.get('package/patches/slk/secure-storage.patch')),secureSlkContract.patchSha256)
 for (const [target, artifact] of Object.entries(contracts.slack.artifacts)) {
-  assert.equal(sha256(entries.get(`package/vendor/slk/${target}/${artifact.binary}`)), artifact.binarySha256, `Packaged binary: ${target}`)
+  const expected=target.startsWith('linux-')?artifact.binarySha256:validateSecureBuild(secureManifest.builds[target],target).binarySha256
+  assert.equal(sha256(entries.get(`package/vendor/slk/${target}/${artifact.binary}`)), expected, `Packaged binary: ${target}`)
+  if(!target.startsWith('linux-'))for(const marker of ['CMX_SECURE_STORAGE','CMX_SECURE_PROFILE_UNAVAILABLE'])assert.ok(entries.get(`package/vendor/slk/${target}/${artifact.binary}`).includes(Buffer.from(marker)))
   if (!target.startsWith('win32')) assert.ok(modes.get(`package/vendor/slk/${target}/${artifact.binary}`)&0o111,`Unix executable mode missing: ${target}; use the Linux CI artifact`)
 }
 for (const [license, hash] of Object.entries(contracts.licenses)) assert.equal(sha256(entries.get(`package/vendor/licenses/${license}`)), hash)
-for (const file of ['dist/cli.js','dist/storage.js','dist/update-worker.js','node_modules/msteams/dist/cli/index.mjs','node_modules/msteams/LICENSE','THIRD_PARTY_NOTICES.md','backend-contracts.json','docs/INSTALL_CANDIDATE.md','docs/DEPENDENCY_NOTICES.md','docs/CREDENTIAL_STORAGE.md']) assert.ok(entries.has(`package/${file}`), `Missing packed file: ${file}`)
+for (const file of ['dist/cli.js','dist/storage.js','dist/secure-slk.js','dist/update-worker.js','node_modules/msteams/dist/cli/index.mjs','node_modules/msteams/LICENSE','THIRD_PARTY_NOTICES.md','backend-contracts.json','patches/slk/contract.json','patches/slk/secure-storage.patch','docs/INSTALL_CANDIDATE.md','docs/DEPENDENCY_NOTICES.md','docs/CREDENTIAL_STORAGE.md','docs/PATCHED_BACKENDS.md']) assert.ok(entries.has(`package/${file}`), `Missing packed file: ${file}`)
 assert.ok(![...entries.keys()].some(name => /(?:^|\/)(?:\.env|config\.local\.json|credentials.*\.json|\.upstream|\.git)(?:\/|$)/.test(name)))
 
 const temporary = await mkdtemp(join(tmpdir(), 'cmx 配布 '))
@@ -72,6 +78,16 @@ try {
     assert.equal(diagnosis.data[0].secureStorageVerified,false)
     assert.equal(diagnosis.data[0].accountRoutingVerified,false)
     assert.equal(diagnosis.data[0].target,`${process.platform}-${process.arch}`)
+    assert.equal(diagnosis.data[0].accessBlocked,process.platform==='linux')
+    // A script override must never become an authentication bypass. Only own
+    // synthetic configuration is used, and this command must start no backend.
+    const override=join(home,'unverified.mjs'),marker=join(home,'override-ran'),config=join(home,'blocked-config.json')
+    await writeFile(override,`import fs from 'node:fs';fs.writeFileSync(${JSON.stringify(marker)},'called')`)
+    await writeFile(config,JSON.stringify({schemaVersion:1,accounts:[{source:'slack',name:'synthetic',profile:'synthetic',executable:override}],tracked:[]}))
+    const blocked=spawnSync(process.execPath,[cli,'--config',config,'doctor','--source','slack','--json'],{env,encoding:'utf8',shell:false,timeout:10000})
+    assert.equal(blocked.status,1)
+    assert.equal(JSON.parse(blocked.stdout).errors[0].code,'CREDENTIAL_STORAGE_BLOCKED')
+    await assert.rejects(access(marker))
     const { resolveExecutable } = await import(pathToFileURL(join(installed,'dist','process.js')).href)
     for (const source of ['teams','slack']) {
       const invocation = await resolveExecutable({source,name:'synthetic',profile:'synthetic'})
@@ -79,10 +95,16 @@ try {
       const withinPackage = relative(installedRoot,backendPath)
       assert.ok(withinPackage && !isAbsolute(withinPackage) && withinPackage !== '..' && !withinPackage.startsWith('..'+sep), `Backend resolved outside installed package: ${backendPath}`)
       assert.match(command(invocation.command,[...invocation.args,'--help'],{env}),source==='teams'?/Teams/i:/slk|Slack/i)
-      if(source==='slack') assert.match(command(invocation.command,[...invocation.args,'--version'],{env}),/0\.2\.0/)
+      if(source==='slack') assert.ok(command(invocation.command,[...invocation.args,'--version'],{env}).includes(process.platform==='linux'?'0.2.0':secureSlkContract.patchedVersion))
     }
     const { target, binary } = (await import(pathToFileURL(join(installed,'dist','backends.js')).href)).slackTarget(process.platform,process.arch)
     const bundled = join(installed,'vendor','slk',target,binary), saved = await readFile(bundled)
+    if(process.platform!=='linux'){
+      const corrupt=Buffer.from(saved);corrupt[0]^=0xff;await writeFile(bundled,corrupt)
+      const {authorizeSlack}=await import(pathToFileURL(join(installed,'dist','secure-slk.js')).href)
+      await assert.rejects(authorizeSlack({source:'slack',name:'synthetic',profile:'synthetic'}),e=>e.code==='CREDENTIAL_STORAGE_BLOCKED')
+      await writeFile(bundled,saved,{mode:0o755})
+    }
     await rm(bundled)
     await assert.rejects(resolveExecutable({source:'slack',name:'synthetic',profile:'synthetic'}),e=>e.code==='DEPENDENCY_MISSING')
     await writeFile(bundled,saved,{mode:0o755})
@@ -96,7 +118,8 @@ try {
   console.log(`PASS ${process.platform}/${process.arch}, Node ${process.versions.node}: offline local/global --ignore-scripts install, cmx shim, real Teams help, real slk help/version, missing backend diagnostic; spaces/Japanese paths`)
   if(!supplied){
     await writeFile(join(dirname(tgz),'SHA256SUMS'),`${tarballDigest}  ${basename(tgz)}\n`)
-    for(const [source,destination] of [['INSTALL_CANDIDATE','INSTALL'],['INSTALL_CANDIDATE','INSTALL_CANDIDATE'],['RELEASING','RELEASING'],['DEPENDENCY_NOTICES','DEPENDENCY_NOTICES'],['CREDENTIAL_STORAGE','CREDENTIAL_STORAGE']]){
+    await writeFile(join(dirname(tgz),'BACKEND_PROVENANCE.json'),JSON.stringify(secureManifest,null,2)+'\n')
+    for(const [source,destination] of [['INSTALL_CANDIDATE','INSTALL'],['INSTALL_CANDIDATE','INSTALL_CANDIDATE'],['RELEASING','RELEASING'],['DEPENDENCY_NOTICES','DEPENDENCY_NOTICES'],['CREDENTIAL_STORAGE','CREDENTIAL_STORAGE'],['PATCHED_BACKENDS','PATCHED_BACKENDS']]){
       await writeFile(join(dirname(tgz),destination+'.md'),await readFile(new URL('../docs/'+source+'.md',import.meta.url),'utf8'))
     }
   }

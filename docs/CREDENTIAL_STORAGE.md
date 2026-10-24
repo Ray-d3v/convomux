@@ -1,8 +1,8 @@
-# Bundled Slack credential storage: release decision required
+# Bundled Slack credential storage and strict profile selection
 
 Checked 2026-10-24 against slk v0.2.0, commit `f8ce5c0d3ecb12602cbeb0469c555ce47eeccbf1`, its Cargo.lock, checksum-verified crate sources, and the fixed release binaries in backend-contracts.json. No real accounts, credential files, OS key stores, login or browser sessions were accessed during this investigation.
 
-The bundled upstream backend cannot guarantee OS-only persistent credential storage or strict requested-account routing. Slack login and reads are now blocked in cmx with `CREDENTIAL_STORAGE_BLOCKED` until a secure replacement is verified and supplied, including executable overrides and with no environment bypass. The guard precedes login configuration access and backend resolution/spawning. Teams, metadata registration, help/version and this offline diagnosis remain available; mixed-source reads preserve Teams results with partial Slack failure. Existing credentials are not read, migrated, deleted or changed. The approved stop policy supersedes the earlier diagnostic-only compatibility policy.
+Unpatched upstream v0.2.0 cannot guarantee persistent OS-only storage or strict requested-account routing. ConvoMux now supplies an upstream-derived `0.2.0+cmx.1` patch on Windows/macOS, only after native mock-store tests, provenance and binary hashes pass. The patch removes plaintext read/write branches and requested-profile fallthrough. Missing/unverified/modified builds and overrides stay blocked; overrides must match approved native bytes. Linux kernel-only authentication is unsupported. Teams, metadata registration, help/version and offline diagnosis remain available. Existing credentials are not automatically read for investigation, migrated, deleted or changed. See [patch and CI provenance](PATCHED_BACKENDS.md).
 
 ## Safe offline diagnosis
 
@@ -10,9 +10,13 @@ The bundled upstream backend cannot guarantee OS-only persistent credential stor
 cmx doctor --storage --json
 ```
 
-This inspects the fixed bundled **build contract**, using the current Node OS/CPU. It does not read cmx configuration, accounts, backend profiles, file existence/permissions, OS key stores, update cache or credentials; it starts no backend and makes no network requests, even in an interactive terminal. It does not certify a custom executable override. Omit account/config/timeout options; `--source slack` or no source selector is accepted. Unsupported OS/CPU still fails explicitly.
+This inspects packaged **source/patch/build provenance and binary hashes**, using the current Node OS/CPU. It does not read user configuration, accounts, backend profiles, credential-file existence/permissions, OS key stores, update cache or credentials; it starts no backend and makes no network requests, even in a TTY. Installed package metadata/binary bytes are checked locally. It does not inspect configured executable overrides. Omit account/config/timeout options; --source slack or no selector is accepted. Unsupported OS/CPU fails explicitly.
 
-Exit **1** is intentional on every supported target: JSON has `ok:false`, `status:"error"`, `secureStorageVerified:false` and `accountRoutingVerified:false`. Windows reports `CREDENTIAL_STORAGE_UNSUPPORTED`; macOS/Linux report `CREDENTIAL_STORAGE_UNVERIFIED`. Diagnostics go to stderr; `--json` stdout remains one common result object. A diagnostic failure does not remove, migrate, chmod, revoke or otherwise change existing credentials.
+Exit **1** is intentional: JSON has ok:false, status:error, secureStorageVerified:false and accountRoutingVerified:false because no live store/identity is probed. Verified Windows/macOS builds report plaintextFallbackAllowed:false, strictRequestedProfileEnforced:true and accessBlocked:false with CREDENTIAL_STORAGE_UNVERIFIED. Linux or missing builds report accessBlocked:true. Diagnostics go to stderr; --json stdout remains one common object. No credential migration, deletion, chmod or revocation occurs. A failed real OS-store operation still fails closed even when the build is admitted.
+
+## Unpatched upstream reference evidence
+
+The table and fallback conditions below describe **unpatched v0.2.0**, not the corrected Windows/macOS binary. They explain why a newer main commit or a preflight file check cannot be used as the fix.
 
 | Release target | Default store selected by this build | Remaining limitation |
 |---|---|---|
@@ -44,8 +48,8 @@ Separately, [`src/auth/mod.rs::resolve_credentials`](https://github.com/osodevop
 
 ## Policy/backend decision before secure use
 
-Recommended: retain the existing authentication implementation upstream, but select a verified release or minimal upstream fix that enables a real Windows store, forbids plaintext **read and write** on store failure, and errors when the requested profile cannot be loaded. Define whether volatile Linux kernel storage meets the organization's requirement or a durable secure store is required. The fixed v0.2.0 binaries have no switch that can enforce these guarantees, so cmx cannot claim to have fixed them with a preflight check.
+The approved fix retains upstream authentication and existing keyring implementations, enables Windows native storage, requires UntilDelete persistence, removes plaintext read/write methods, and immediately errors when an explicit requested profile cannot be loaded. It is implemented as a small source patch with pinned hashes and native mock-only tests, not a preflight-only claim. Linux's kernel keyring fails this persistence requirement and remains unsupported for authenticated use.
 
-Until such a backend is available, the approved policy is to block affected Slack logins and reads, including overrides. This is an intentional behavior change. The newest public main commit `66c0f26492cb049ea287f6463d8a19eb97ec7cb9` and latest Release v0.2.0 have identical Git blobs for keyring.rs, auth/mod.rs and config/mod.rs; no fixed public replacement was found. A minimal upstream-derived patch can reuse keyring, reject non-persistent stores, remove both plaintext branches and stop on explicit requested-profile failures. Authentication/session extraction is not reimplemented. Copying/deleting credentials, changing endpoint permissions or creating real login sessions remains outside authorization. Native build/test/provenance must be verified before enabling any replacement; Linux kernel-only keyutils remains unsupported for persistent storage.
+The approved stop remains in force wherever the package lacks a verified supported native build. Latest public main `66c0f26492cb049ea287f6463d8a19eb97ec7cb9` and Release v0.2.0 have identical storage/resolver/config blobs; no fixed public replacement was found. Windows/macOS admission is conditional on the managed patch/provenance/hash checks; it does not authorize real login in this task or certify an endpoint store. Copying/deleting credentials, changing endpoint permissions and real sessions remain outside authorization. Future Linux persistent-store support needs its own OS dependency/build validation.
 
 Teams uses its own profile JSON and is not covered by this Slack diagnosis. The main project license, npm scope rights and publication still require independent owner decisions; see [the three owner steps](RELEASING.md#owner-prerequisites-before-publishing).

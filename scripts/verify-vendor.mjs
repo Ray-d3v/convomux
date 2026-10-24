@@ -2,10 +2,16 @@ import { readFile, access } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { contracts, sha256 } from './backend-artifacts.mjs'
+import {secureSlkContract,validateSecureBuild} from '../dist/secure-slk.js'
+
+const secureManifest=JSON.parse(await readFile(new URL('../vendor/slk/secure-builds.json',import.meta.url),'utf8'))
+if(secureManifest.schemaVersion!==1)throw Error('Patched backend manifest missing')
+if(sha256(await readFile(new URL('../patches/slk/secure-storage.patch',import.meta.url)))!==secureSlkContract.patchSha256)throw Error('Local patch hash mismatch')
 
 for (const [target, artifact] of Object.entries(contracts.slack.artifacts)) {
   const bytes = await readFile(new URL(`../vendor/slk/${target}/${artifact.binary}`, import.meta.url))
-  if (!artifact.binarySha256 || sha256(bytes) !== artifact.binarySha256) throw new Error(`Bundled binary missing/corrupt: ${target}`)
+  const expected=target.startsWith('linux-')?artifact.binarySha256:validateSecureBuild(secureManifest.builds[target],target).binarySha256
+  if (!expected || sha256(bytes) !== expected) throw new Error(`Bundled binary missing/corrupt: ${target}`)
 }
 for (const [name, hash] of Object.entries(contracts.licenses)) {
   if (sha256(await readFile(new URL(`../vendor/licenses/${name}`, import.meta.url))) !== hash) throw new Error(`License missing/corrupt: ${name}`)

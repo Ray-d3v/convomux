@@ -12,10 +12,13 @@ test('unverified Slack login/read fail before profile, executable or credential 
   const sentinel='Synthetic existing configuration must not be parsed or changed by login.'
   await writeFile(config,sentinel)
   await writeFile(backend,`import {writeFileSync} from 'node:fs';writeFileSync(${JSON.stringify(marker)},'called');process.exit(99)`)
-  for(const override of [[],['--executable',backend],['--executable',join(dir,'absent')]]){
+  const native=join(dir,process.platform==='win32'?'unverified.exe':'unverified-native')
+  await writeFile(native,'synthetic unverified native bytes')
+  // Never exercise a real bundled auth command, even when a valid native build is present.
+  for(const override of [['--executable',backend],['--executable',join(dir,'absent')]]){
     await assert.rejects(dispatch(['login','slack','--name','work','--workspace','synthetic',...override,'--config',config]),e=>e.code==='CREDENTIAL_STORAGE_BLOCKED')
   }
-  for(const executable of [undefined,backend,join(dir,'absent')]){
+  for(const executable of [backend,native,join(dir,'absent')]){
     await assert.rejects(run({source:'slack',name:'work',profile:'synthetic',...(executable?{executable}:{})},['--workspace','synthetic','api','call','auth.test'],{timeout:1000}),e=>e.code==='CREDENTIAL_STORAGE_BLOCKED')
   }
   assert.equal(await readFile(config,'utf8'),sentinel)
