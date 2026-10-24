@@ -19,13 +19,13 @@ cmx --help
 Linux:
 
 ```sh
-sha256sum -c SHA256SUMS
-npm install -g --ignore-scripts ./ray-d3v-convomux-0.1.0.tgz
-cmx --version
+sha256sum -c SHA256SUMS &&
+npm install -g --ignore-scripts ./ray-d3v-convomux-0.1.0.tgz &&
+cmx --version &&
 cmx --help
 ```
 
-On macOS use `shasum -a 256 -c SHA256SUMS`, then the same npm/cmx commands.
+On macOS replace `sha256sum -c SHA256SUMS` with `shasum -a 256 -c SHA256SUMS` in the same chain. If the checksum differs, stop; the chain does not install the package after a failed verification.
 
 To update, download the next reviewed artifact linked by the PR, verify **its new digest**, and run the same `npm install -g --ignore-scripts <new-file.tgz>` command. The review filename/version can remain 0.1.0 during this draft; the source commit and SHA-256 identify the exact candidate. No uninstall, account reset or backend install is required. `cmx config path` shows the existing user configuration outside the installation directory; npm replacement does not delete that configuration or upstream user credential stores.
 
