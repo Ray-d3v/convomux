@@ -88,7 +88,7 @@ try {
   console.log(`PASS ${process.platform}/${process.arch}, Node ${process.versions.node}: offline local/global --ignore-scripts install, cmx shim, real Teams help, real slk help/version, missing backend diagnostic; spaces/Japanese paths`)
   if(!supplied){
     await writeFile(join(dirname(tgz),'SHA256SUMS'),`${tarballDigest}  ${basename(tgz)}\n`)
-    for(const [source,destination] of [['INSTALL_CANDIDATE','INSTALL'],['RELEASING','RELEASING'],['DEPENDENCY_NOTICES','DEPENDENCY_NOTICES']]){
+    for(const [source,destination] of [['INSTALL_CANDIDATE','INSTALL'],['INSTALL_CANDIDATE','INSTALL_CANDIDATE'],['RELEASING','RELEASING'],['DEPENDENCY_NOTICES','DEPENDENCY_NOTICES']]){
       await writeFile(join(dirname(tgz),destination+'.md'),await readFile(new URL('../docs/'+source+'.md',import.meta.url),'utf8'))
     }
   }
