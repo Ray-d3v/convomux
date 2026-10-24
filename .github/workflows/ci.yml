@@ -47,7 +47,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: convomux-package
-          path: .upstream/package/*.tgz
+          path: .upstream/package/*
           include-hidden-files: true
           if-no-files-found: error
   native-package:

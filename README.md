@@ -32,6 +32,8 @@ Windows上流バイナリには `VCRUNTIME140.dll` / Windows UCRT の実行要�
 
 出典・アーカイブと展開後バイナリのSHA-256・確認した契約は [backend-contracts.json](backend-contracts.json)、著作権・ライセンスは [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) にあります。
 
+レビュー候補の取得・SHA-256確認・導入・更新は [候補版の手順](docs/INSTALL_CANDIDATE.md) を参照してください。PRが示すActions artifactにはtgz、SHA256SUMS、導入手順と配布資料が含まれます。最初に未補完とした12依存の公開資料調査・表記補完は完了し、[依存表記の根拠](docs/DEPENDENCY_NOTICES.md)に所有者の決定事項と分けて記録しています。
+
 ## 初回ログインと前提条件
 
 ```sh

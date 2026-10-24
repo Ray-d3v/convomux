@@ -10,6 +10,8 @@ for (const [target, artifact] of Object.entries(contracts.slack.artifacts)) {
 for (const [name, hash] of Object.entries(contracts.licenses)) {
   if (sha256(await readFile(new URL(`../vendor/licenses/${name}`, import.meta.url))) !== hash) throw new Error(`License missing/corrupt: ${name}`)
 }
+const noticeManifest=JSON.parse(await readFile(new URL('../vendor/licenses/slk-dependencies.json',import.meta.url),'utf8'))
+if(noticeManifest.packages.some(pkg=>!pkg.noticeFiles.length))throw new Error('A dependency lacks retained notice/attribution material')
 const dist = dirname(fileURLToPath(import.meta.resolve('msteams')))
 const manifest = JSON.parse(await readFile(join(dist, '..', 'package.json'), 'utf8'))
 if (manifest.version !== contracts.teams.sourcePackageVersion || manifest.bin.teams !== contracts.teams.entry) throw new Error('msteams package contract mismatch')

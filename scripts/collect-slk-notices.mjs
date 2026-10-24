@@ -2,10 +2,13 @@
 // Nothing fetched here is executed or extracted to archive-controlled filesystem paths.
 import { readFile, writeFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
-import { list } from 'tar'
+import { readCrateNotices } from './notice-archive.mjs'
 const root = new URL('../',import.meta.url)
 const contracts = JSON.parse(await readFile(new URL('backend-contracts.json',root),'utf8'))
+const supplements = JSON.parse(await readFile(new URL('vendor/licenses/slk-notice-sources.json',root),'utf8'))
 const hash = bytes=>createHash('sha256').update(bytes).digest('hex')
+const gitBlob = bytes=>createHash('sha1').update(Buffer.from(`blob ${bytes.length}\0`)).update(bytes).digest('hex')
+const supplementalDownloads = new Map()
 const lockUrl=`https://raw.githubusercontent.com/osodevops/slack-cli/${contracts.slack.revision}/Cargo.lock`
 async function download(url) {
   const response=await fetch(url,{signal:AbortSignal.timeout(60000)})
@@ -27,23 +30,26 @@ await Promise.all(Array.from({length:6},async()=>{
     const index=next++,pkg=packages[index],url=`https://static.crates.io/crates/${pkg.name}/${pkg.name}-${pkg.version}.crate`
     const bytes=await download(url)
     if(hash(bytes)!==pkg.checksum)throw Error(`Crate checksum mismatch: ${pkg.name}`)
-    const files=new Map(),prefix=`${pkg.name}-${pkg.version}/`;let cargo=''
-    const parser=list({strict:true,onReadEntry:entry=>{
-      if(!entry.path.startsWith(prefix)||entry.path.split('/').includes('..'))throw Error('Unsafe source path')
-      const path=entry.path.slice(prefix.length),base=path.split('/').at(-1)
-      if(entry.type!=='File'||(!/^(?:licen[cs]e|copying|notice|copyright|authors)(?:[._-].*)?$/i.test(base)&&path!=='Cargo.toml')){entry.resume();return}
-      if(entry.size>2*1024*1024)throw Error('Notice size limit')
-      const chunks=[];entry.on('data',chunk=>chunks.push(chunk));entry.on('end',()=>{const text=Buffer.concat(chunks).toString('utf8').replace(/\r\n/g,'\n');if(path==='Cargo.toml')cargo=text;else files.set(path,text)})
-    }})
-    await new Promise((resolve,reject)=>{parser.on('error',reject);parser.on('end',resolve);parser.end(bytes)})
+    const supplement=supplements.packages[`${pkg.name}@${pkg.version}`]
+    if(supplement&&supplement.crateChecksum!==pkg.checksum)throw Error('Supplement targets a different crate archive')
+    const {files,metadata,cargo}=await readCrateNotices(bytes,pkg,supplement?.includeCrateFiles??[])
+    if(supplement&&metadata.has('.cargo_vcs_info.json')&&JSON.parse(metadata.get('.cargo_vcs_info.json')).git.sha1!==supplement.sourceRevision)throw Error(`Supplement revision mismatch: ${pkg.name}`)
+    for(const file of supplement?.files??[]){
+      if(!/^https:\/\/raw\.githubusercontent\.com\/[-\w.]+\/[-\w.]+\/[a-f0-9]{40}\//.test(file.url))throw Error('Supplement must use a fixed public Git revision')
+      if(!supplementalDownloads.has(file.url))supplementalDownloads.set(file.url,download(file.url))
+      const content=await supplementalDownloads.get(file.url)
+      if(content.length>2*1024*1024||hash(content)!==file.sha256||gitBlob(content)!==file.gitBlobSha1)throw Error(`Supplement checksum mismatch: ${file.url}`)
+      files.set(file.path,content.toString('utf8').replace(/\r\n/g,'\n'))
+    }
     const license=/^license = "([^"]+)"/m.exec(cargo)?.[1]??null
-    results[index]={name:pkg.name,version:pkg.version,checksum:pkg.checksum,url,declaredLicense:license,notices:[...files].sort(([a],[b])=>a.localeCompare(b,'en'))}
+    results[index]={name:pkg.name,version:pkg.version,checksum:pkg.checksum,url,declaredLicense:license,...(supplement?{noticeEvidence:supplement.note,supplementalSources:supplement.files}:{}),notices:[...files].sort(([a],[b])=>a.localeCompare(b,'en'))}
     if(++completed%50===0)console.log(`Verified notice sources: ${completed}/${packages.length}`)
   }
 }))
 const manifest={sourceRevision:contracts.slack.revision,lockUrl,cargoLockSha256:hash(lock),scope:'Entire release Cargo.lock, including target/build/dev dependencies; source attribution inventory, not binary reproducibility or legal clearance.',packages:results.map(({notices,...pkg})=>({...pkg,noticeFiles:notices.map(([name])=>name)}))}
 const notices=['slk v0.2.0 dependency source notices','Source revision: '+contracts.slack.revision,'All downloads verified against release Cargo.lock SHA-256 checksums. Includes target/build/dev dependencies.\n',...results.flatMap(pkg=>[
   `\n========== ${pkg.name} ${pkg.version} ==========\nSource: ${pkg.url}\nDeclared license: ${pkg.declaredLicense??'(not declared)'}\n`,
+  ...(pkg.noticeEvidence?[`Attribution evidence: ${pkg.noticeEvidence}\n`,...pkg.supplementalSources.map(file=>`Supplement: ${file.url}\nSHA-256: ${file.sha256}\n`)]:[]),
   ...pkg.notices.map(([name,text])=>`\n--- ${name} ---\n${text}`),
   ...(!pkg.notices.length?['No standalone notice file in published source archive; review declared license and source headers.\n']:[]),
 ])].join('\n')

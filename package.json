@@ -13,6 +13,8 @@
     "backend-contracts.json",
     "THIRD_PARTY_NOTICES.md",
     "docs/RELEASING.md",
+    "docs/INSTALL_CANDIDATE.md",
+    "docs/DEPENDENCY_NOTICES.md",
     "README.md",
     "SECURITY.md"
   ],

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { mkdtemp, mkdir, readFile, writeFile, rm, access, readdir, symlink, copyFile, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve, relative, isAbsolute, sep } from 'node:path'
+import { join, resolve, relative, isAbsolute, sep, dirname, basename } from 'node:path'
 import { pathToFileURL, fileURLToPath } from 'node:url'
 import { list } from 'tar'
 import { contracts, sha256 } from './backend-artifacts.mjs'
@@ -18,6 +18,7 @@ function command(executable, args, options = {}) {
   return result.stdout
 }
 let supplied = process.argv[2]
+const checkSidecar = supplied === '--existing'
 if (supplied === '--existing') {
   const packages = (await readdir(output)).filter(name=>name.endsWith('.tgz'))
   assert.equal(packages.length,1,'Expected exactly one prepared package')
@@ -25,6 +26,11 @@ if (supplied === '--existing') {
 }
 if (!supplied && process.platform === 'win32') throw new Error('Use a Linux CI tgz: npm run package:smoke -- PATH. Windows npm pack loses Unix executable modes.')
 const tgz = supplied ? resolve(supplied) : join(output, JSON.parse(command(process.execPath, [npm, 'pack', '--ignore-scripts', '--json', '--pack-destination', output]))[0].filename)
+const tarballDigest = sha256(await readFile(tgz))
+if(checkSidecar){
+  const receipt=(await readFile(join(dirname(tgz),'SHA256SUMS'),'utf8')).trim().split(/\s+/u)
+  assert.deepEqual(receipt,[tarballDigest,basename(tgz)],'Artifact checksum sidecar does not match the tgz')
+}
 const entries = new Map(), modes = new Map()
 await list({ file: tgz, onReadEntry: entry => {
   const chunks = []
@@ -37,7 +43,7 @@ for (const [target, artifact] of Object.entries(contracts.slack.artifacts)) {
   if (!target.startsWith('win32')) assert.ok(modes.get(`package/vendor/slk/${target}/${artifact.binary}`)&0o111,`Unix executable mode missing: ${target}; use the Linux CI artifact`)
 }
 for (const [license, hash] of Object.entries(contracts.licenses)) assert.equal(sha256(entries.get(`package/vendor/licenses/${license}`)), hash)
-for (const file of ['dist/cli.js','dist/update-worker.js','node_modules/msteams/dist/cli/index.mjs','node_modules/msteams/LICENSE','THIRD_PARTY_NOTICES.md','backend-contracts.json']) assert.ok(entries.has(`package/${file}`), `Missing packed file: ${file}`)
+for (const file of ['dist/cli.js','dist/update-worker.js','node_modules/msteams/dist/cli/index.mjs','node_modules/msteams/LICENSE','THIRD_PARTY_NOTICES.md','backend-contracts.json','docs/INSTALL_CANDIDATE.md','docs/DEPENDENCY_NOTICES.md']) assert.ok(entries.has(`package/${file}`), `Missing packed file: ${file}`)
 assert.ok(![...entries.keys()].some(name => /(?:^|\/)(?:\.env|config\.local\.json|credentials.*\.json|\.upstream|\.git)(?:\/|$)/.test(name)))
 
 const temporary = await mkdtemp(join(tmpdir(), 'cmx 配布 '))
@@ -80,5 +86,11 @@ try {
     : command(shim,['--version'],{env})
   assert.equal(version.trim(),metadata.version)
   console.log(`PASS ${process.platform}/${process.arch}, Node ${process.versions.node}: offline local/global --ignore-scripts install, cmx shim, real Teams help, real slk help/version, missing backend diagnostic; spaces/Japanese paths`)
-  console.log(`Verified tarball: ${tgz}\nSHA-256: ${sha256(await readFile(tgz))}`)
+  if(!supplied){
+    await writeFile(join(dirname(tgz),'SHA256SUMS'),`${tarballDigest}  ${basename(tgz)}\n`)
+    for(const [source,destination] of [['INSTALL_CANDIDATE','INSTALL'],['RELEASING','RELEASING'],['DEPENDENCY_NOTICES','DEPENDENCY_NOTICES']]){
+      await writeFile(join(dirname(tgz),destination+'.md'),await readFile(new URL('../docs/'+source+'.md',import.meta.url),'utf8'))
+    }
+  }
+  console.log(`Verified tarball: ${tgz}\nSHA-256: ${tarballDigest}`)
 } finally { await rm(temporary,{recursive:true,force:true}) }
