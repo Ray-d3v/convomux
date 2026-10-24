@@ -74,11 +74,15 @@
         "sha256": "e4b1580dac78e46cdad5e7836d1567b5d955557ee77e15dd49aeb992e8713646",
         "binarySha256": "59791befa5caf387d5336e303e88b5b448e70223eec613ba0d8a9b9043bdfeee"
       }
-    }
+    },
+    "cargoLockSha256": "55de689146701de500b7f54c8665f64f6ad8b6dac92fa54618ae28f7780aecb5"
   },
   "licenses": {
     "msteams-MIT.txt": "cf82af2a075a1712c86ce26bf8657341e7b1d2dddcdc4f63dba05e0574f0185b",
     "slk-MIT.txt": "c550217cba23cda2bd68d34ceb3a71a841cd1ef9097c41db2f401b58b3362391",
-    "simple-update-notifier-MIT.txt": "c34396f8f573f642c7ce5d18fb9b46b2d85e46979f8c06facca387c5293baede"
+    "simple-update-notifier-MIT.txt": "c34396f8f573f642c7ce5d18fb9b46b2d85e46979f8c06facca387c5293baede",
+    "slk-Cargo.lock": "55de689146701de500b7f54c8665f64f6ad8b6dac92fa54618ae28f7780aecb5",
+    "slk-dependencies.json": "58f045791cf0e44ebf00444dca4766ed480d1b075e1dbd25af520684e8a29ce4",
+    "slk-dependency-notices.txt": "afa6515955f5c285bb607f6cc39654fa24bba88a58d9b36250b58e900fd5fef9"
   }
 }

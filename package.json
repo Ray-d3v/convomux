@@ -25,6 +25,7 @@
     "test": "npm run build && node --test test/*.test.mjs",
     "check": "npm run typecheck && npm test",
     "backends:prepare": "node scripts/backend-artifacts.mjs",
+    "backends:notices": "node scripts/collect-slk-notices.mjs",
     "backends:verify": "node scripts/verify-vendor.mjs",
     "package:smoke": "node scripts/package-smoke.mjs",
     "prepack": "node scripts/check-pack-host.mjs && npm run build && npm run backends:verify"

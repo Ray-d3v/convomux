@@ -10,12 +10,15 @@ Node 22/24 and npm are sufficient. Generate universal release tarballs on Linux 
 npm ci --ignore-scripts
 npm run check
 npm run backends:prepare
+npm run backends:notices
 npm run backends:verify
 npm pack
 npm run package:smoke
 ```
 
 Only backends:prepare accesses fixed upstream release archives. Hashes are checked before parsing. Archive parsers accept exactly the expected root filename, reject traversal, links (tar), duplicate names and unexpected files, and write bytes as regular files instead of honoring archive paths/permissions. Archive and binary sizes are bounded. No downloaded script is executed. Every binary is checked again by its extracted SHA-256 before packing; licenses also have fixed hashes. Missing files fail prepack. `npm pack --ignore-scripts` can bypass lifecycle checks, so CI additionally inspects and installs the actual tarball.
+
+backends:notices is a separate source-attribution refresh step, unnecessary for ordinary builds because its results are committed. It downloads the fixed release Cargo.lock and all 362 registry source archives, verifies every crate checksum before parsing, and collects actual notice text plus declared license metadata. No source is compiled/executed. The full inventory includes dev/build and target-specific packages. Review the 12 entries with empty noticeFiles (source headers/upstream license files) and the declared SPDX terms before public redistribution; do not treat collection alone as clearance. backends:verify and package:smoke hash-check the committed inventory, lock and notice text in the final tgz.
 
 The universal tgz contains all five slk binaries and bundled msteams/semver dependency trees. It is larger than an architecture-specific optional package, but needs no extra npm scope ownership, optional-dependency resolution or postinstall download. `--ignore-scripts` and offline installation from the prepared tgz work. An update replaces the entire tested combination; configs and sessions stay in user directories. Development node_modules, archives and generated binaries are ignored by Git; CI prepares binaries deterministically.
 
