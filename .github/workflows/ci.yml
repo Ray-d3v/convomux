@@ -74,6 +74,7 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci --ignore-scripts
+      - run: npm run build
       - uses: actions/download-artifact@v4
         with:
           name: convomux-package
