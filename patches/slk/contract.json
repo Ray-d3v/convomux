@@ -1,0 +1,35 @@
+{
+  "upstreamRepository": "https://github.com/osodevops/slack-cli",
+  "upstreamCommit": "f8ce5c0d3ecb12602cbeb0469c555ce47eeccbf1",
+  "upstreamRelease": "v0.2.0",
+  "sourceArchiveSha256": "cb7b4a106b5e2ecf2e7baa6035016ac973a1e99ceea69f47bb3a52dab6b11ecf",
+  "patchedVersion": "0.2.0+cmx.1",
+  "patchSha256": "2d1e4ce908af7c2d10d75da7d41007e6ef77422daad4ee2395ce95a36d1b70f0",
+  "rustToolchain": "1.98.0",
+  "license": "MIT",
+  "originalFiles": {
+    "Cargo.toml": "103ede911359b30d287cb709649f730d78dabaa489a13185f036b1ed6387ab5b",
+    "Cargo.lock": "55de689146701de500b7f54c8665f64f6ad8b6dac92fa54618ae28f7780aecb5",
+    "src/auth/keyring.rs": "b6c040c0e9d4c8d7b4d7826556b5060dfdbdb63cf030c73164881e2b586e4046",
+    "src/auth/mod.rs": "2888f0dd6683e9f82b4e0f7ac2b4553d36c7462d8902f2d3bce619f3c261ae0a",
+    "src/cli/auth.rs": "62cf8bf6562f1d211b0cd71206fc6ee4b26d93c8ed368dc365949a1db03dbddb"
+  },
+  "patchedFiles": {
+    "Cargo.toml": "a762632acc9a1b61631ae136b9bdb91973053519adac345505a5ac8eb8f33ceb",
+    "Cargo.lock": "b6e111f933260f7443fdfc2b533a240d01b4e6b6fc6d36ea42762446760ad920",
+    "src/auth/keyring.rs": "6f71d066213c3035ef5dca2a1098e5b8a2c45156228ebf1a1b4ef14ac6a896c6",
+    "src/auth/mod.rs": "71b853833632fa8def77303fffa3f67f1eeb3ea52bd731791cea6f6285b023f0",
+    "src/cli/auth.rs": "dd5fe609859fe8376c9dce66b2e7ab3bf2d369e1b43022ac8a20b847af79c76a"
+  },
+  "persistentTargets": [
+    "win32-x64",
+    "darwin-arm64",
+    "darwin-x64"
+  ],
+  "unsupportedAuthenticatedTargets": [
+    "linux-x64",
+    "linux-arm64"
+  ],
+  "nativeVaultTestsPerformed": false,
+  "notes": "Existing keyring/auth reused. Windows native enabled, nonpersistent default builders rejected; no plaintext read/write fallback; explicit requested profile errors never select active. Tests install only a synthetic builder."
+}
