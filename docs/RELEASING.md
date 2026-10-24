@@ -4,7 +4,7 @@ No package, tag or GitHub Release was published by this change. The proposed npm
 
 ## Reproduce a candidate
 
-Node 22/24 and npm are sufficient. From a trusted checkout:
+Node 22/24 and npm are sufficient. Generate universal release tarballs on Linux (the standard GitHub package job does this); Windows npm pack loses Unix executable modes. Windows developers can run build/check and install/test the CI tgz. From a trusted Linux checkout:
 
 ```sh
 npm ci --ignore-scripts
@@ -19,7 +19,7 @@ Only backends:prepare accesses fixed upstream release archives. Hashes are check
 
 The universal tgz contains all five slk binaries and bundled msteams/semver dependency trees. It is larger than an architecture-specific optional package, but needs no extra npm scope ownership, optional-dependency resolution or postinstall download. `--ignore-scripts` and offline installation from the prepared tgz work. An update replaces the entire tested combination; configs and sessions stay in user directories. Development node_modules, archives and generated binaries are ignored by Git; CI prepares binaries deterministically.
 
-package:smoke writes `.upstream/package/ray-d3v-convomux-0.1.0.tgz`, then tests local and global temporary prefixes with empty npm cache, `--offline --ignore-scripts`, an isolated home and PATH containing Node only. It runs the actual installed cmx shim and native backends. It checks all packaged binary/license hashes and a missing-backend diagnostic. It never authenticates. Pass an existing tgz as `npm run package:smoke -- PATH` to check that exact artifact.
+package:smoke writes `.upstream/package/ray-d3v-convomux-0.1.0.tgz` on Linux, then tests local and global temporary prefixes with empty npm cache, `--offline --ignore-scripts`, an isolated home and a new PATH directory containing only Node. It runs the actual installed cmx shim and native backends. It checks all packaged binary/license hashes, Unix executable modes, and a missing-backend diagnostic. It never authenticates. Pass an existing CI tgz as `npm run package:smoke -- PATH` to check that exact artifact on Windows or other targets. No install hook or runtime chmod workaround is used.
 
 ## Install a reviewed local candidate
 

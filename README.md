@@ -143,4 +143,6 @@ npm run package:smoke
 
 単体・結合テストは合成データでオフラインです。パッケージ検証は空のnpmキャッシュ、隔離ホーム、NodeだけのPATH、空白・日本語を含むパスで `--offline --ignore-scripts` によるローカル/一時グローバル導入を行い、実cmxシムと本物のTeams help / slk help・versionを起動します。ライセンス・部品の梱包漏れも検出します。モックだけで導入成功とは判定しません。
 
+汎用tgzの生成はLinux CIで行います。Windowsの `npm pack` はUnix部品の実行権限を失うためprepackで拒否し、配布検証でもtgz内の権限を確認します。Windows開発環境ではbuild/checkを実行し、CIから取得したtgzを `npm run package:smoke -- PATH` で検証してください。
+
 既存のWindows/macOS/Linux × Node22/24テストを維持し、別ジョブで5環境 × Node22/24の同一tgzのネイティブ起動を確認します。未実行・失敗・実ログイン未確認は [検証記録](docs/VALIDATION.md) に区別します。公開手順・Trusted Publishing・所有者の残作業は [RELEASING.md](docs/RELEASING.md) を参照してください。`private:true` / `UNLICENSED` は所有者判断まで維持しています。

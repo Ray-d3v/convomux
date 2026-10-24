@@ -27,7 +27,7 @@
     "backends:prepare": "node scripts/backend-artifacts.mjs",
     "backends:verify": "node scripts/verify-vendor.mjs",
     "package:smoke": "node scripts/package-smoke.mjs",
-    "prepack": "npm run build && npm run backends:verify"
+    "prepack": "node scripts/check-pack-host.mjs && npm run build && npm run backends:verify"
   },
   "repository": {
     "type": "git",
