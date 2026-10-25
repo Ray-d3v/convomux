@@ -153,7 +153,7 @@ npm run package:smoke
 
 汎用tgzの生成はLinux CIで行います。Windowsの `npm pack` はUnix部品の実行権限を失うためprepackで拒否し、配布検証でもtgz内の権限を確認します。Windows開発環境ではbuild/checkを実行し、CIから取得したtgzを `npm run package:smoke -- PATH` で検証してください。
 
-既存のWindows/macOS/Linux × Node22/24テストを維持し、別ジョブで5環境 × Node22/24の同一tgzのネイティブ起動を確認します。未実行・失敗・実ログイン未確認は [検証記録](docs/VALIDATION.md) に区別します。公開手順・Trusted Publishing・所有者の残作業は [RELEASING.md](docs/RELEASING.md) を参照してください。`private:true` / `UNLICENSED` は所有者判断まで維持しています。
+既存のWindows/macOS/Linux × Node22/24テストを維持し、別ジョブで5環境 × Node22/24の同一tgzのネイティブ起動を確認します。未実行・失敗・実ログイン未確認は [検証記録](docs/VALIDATION.md) に区別します。公開手順・Trusted Publishing・所有者の残作業は [RELEASING.md](docs/RELEASING.md) を参照してください。`private:true` は維持し、本体ライセンスは所有者承認済みの MIT としています。npmアカウントは未作成、公開名・scope は未確定です。
 
 ## ライセンスと公開状態
 
