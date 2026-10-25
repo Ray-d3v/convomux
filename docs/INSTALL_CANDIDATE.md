@@ -1,6 +1,6 @@
 # Install or update the reviewed ConvoMux candidate
 
-This is an unpublished review candidate. The npm registry package name is not advertised as available. Node.js 22/24 and npm are required; the package includes the fixed Teams/Slack components. You do not install teams/slk, Rust, Bun or Git or compile anything.
+This is an unpublished review candidate. ConvoMux's own license is owner-approved [MIT](../LICENSE); third-party terms remain separate. The npm account is not yet created, the final npm name/scope is unconfirmed, and private:true remains. A public repository or MIT license does not authorize npm publication. No registry package name is advertised as available. Node.js 22/24 and npm are required; the package includes the fixed Teams/Slack components. You do not install teams/slk, Rust, Bun or Git or compile anything.
 
 Slack authenticated use is admitted only for the verified patched Windows/macOS builds. Missing, altered or unverified builds/overrides return CREDENTIAL_STORAGE_BLOCKED. Linux authenticated use is UNSUPPORTED until a secure persistent store is provided; its backend help/version and Teams remain available. Do not invoke an unpatched backend to bypass these controls. No existing credential data is migrated, deleted or changed automatically. See [patched build evidence](PATCHED_BACKENDS.md).
 
@@ -43,4 +43,4 @@ The candidate has native packaging checks for Windows x64, macOS arm64/x64 and L
 
 Slack browser login additionally needs a discoverable installed Chrome/Chromium and an interactive desktop; minimal Windows runtime requirements remain in README/SECURITY. Real login/SSO/MFA and endpoint storage require separately authorized validation; none was performed in this task. Do not submit tokens or profile files to the PR.
 
-After the owner actually publishes and confirms the final npm name, registry installation/update will use `npm install -g <confirmed-package-name>@latest`. The task does not perform publication. See [release owner steps](RELEASING.md) and [dependency notice evidence](DEPENDENCY_NOTICES.md).
+After the owner creates their own npm account, confirms name/scope rights, and separately authorizes and performs publication, registry installation/update will use `npm install -g <confirmed-package-name>@latest`. The task does not perform publication. See [release owner steps](RELEASING.md) and [dependency notice evidence](DEPENDENCY_NOTICES.md).

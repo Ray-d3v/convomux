@@ -1,4 +1,8 @@
-# Validation record (2026-10-24)
+# Validation record
+
+## Owner-approved MIT follow-up (2026-10-25)
+
+The owner approved MIT for ConvoMux itself. Root LICENSE uses Copyright (c) 2026 Ray, matching the existing initial Git author in commits 25aea33/712119d. package.json and root package-lock metadata use MIT; private:true stays in force. npm account creation, final name/scope rights, publication and permission changes are not authorized by this license decision. Third-party license bytes, pinned backends and runtime safety behavior are unchanged. Real native store, account login/SSO/MFA, browser/minimum Windows runtime and Linux persistent-store support remain unverified/unsupported as documented. The older UNLICENSED statements below are historical, superseded only for ConvoMux's own license. Current limited/local/full-CI checks and exact candidate hash are linked from draft PR #1.
 
 ## Audit correction: actual Rust test execution required
 
@@ -37,7 +41,7 @@ Latest upstream main is `66c0f26492cb049ea287f6463d8a19eb97ec7cb9` (8 commits af
 - A repeat MSI install run hit its 120-second local npm-install deadline under concurrent load; no package success was inferred from that run. The bounded package-tooling deadline is now 180 seconds. Initial successful installs and CI results are recorded separately.
 - `c10f237` CI passed native macOS arm64/x64 and Linux arm64/x64 on both Node versions. Windows exposed another verifier string-prefix comparison issue after canonicalization; the verifier now canonicalizes both paths and uses platform-aware path.relative containment (including Windows drive/case semantics). The original `632a152` Linux tgz was independently installed/executed successfully on MSI with the new isolated Node-only PATH and mode checks.
 
-Owner release decisions remain: npm scope/name authority, ConvoMux's own license and permission to publish. Endpoint login/storage/minimal Windows runtime validation is separate. Missing public dependency notice lookup is no longer an owner task. Public npm install is not available until the owner publishes.
+Owner release tasks remain: npm account creation, final scope/name authority, publication setup and separate permission to publish; MIT for ConvoMux itself was approved on 2026-10-25. Endpoint login/storage/minimal Windows runtime validation is separate. Missing public dependency notice lookup is no longer an owner task. Public npm install is not available until the owner publishes.
 
 Initial slk source notice collection verified all 362 registry archives against the release Cargo.lock (lock SHA-256 `55de689146701de500b7f54c8665f64f6ad8b6dac92fa54618ae28f7780aecb5`) but left twelve empty noticeFiles entries. Follow-up investigation found one was a collector bug: crc-catalog already includes SPDX-named files under LICENSES/. A synthetic crate test failed with the original selection rule and passed after the directory/sidecar repair. Ten others now include actual matching upstream root licenses, including all offered options/LLVM exceptions; linux-keyutils includes its original explicit dual-license README/author metadata and pinned canonical SPDX texts without invented copyright fields. All 362 entries now have retained notice/attribution material (about 3.59 MB). See DEPENDENCY_NOTICES.md and slk-notice-sources.json for exact evidence/URLs/hashes. Build/dev/other-target dependencies remain included without claiming all are linked into each binary.
 

@@ -4,7 +4,7 @@
 
 Teams / Slack をひとつのコマンド `cmx` から読む、ローカルの読み取り専用CLIです。認証・非公式APIは既存の msteams / slk に委譲します。AI、BYOK、Copilot、MCP、メッセージ送信・編集・削除は提供しません。
 
-**v0.1.0 / experimental、npm未公開。** Node.js 22 / 24 と npm が必要です。所有者が公開名・ライセンスを確定して公開するまでは、下記の検証済みローカルtgzを使います。実アカウントのログイン・SSO・MFAは本人が行う前提で、CIの成功は実ログイン成功を意味しません。
+**v0.1.0 / experimental、npm未公開。** Node.js 22 / 24 と npm が必要です。本体ライセンスは所有者承認済みの MIT です。npmアカウントは未作成、公開名・scope は未確定で、公開は別途承認が必要です。公開までは以下の検証済みローカルtgzを使います。実アカウントのログイン・SSO・MFAは本人が行う前提で、CIの成功は実ログイン成功を意味しません。
 
 ## 導入と更新
 
@@ -19,7 +19,7 @@ cmx --version
 
 更新も新しい検証済みtgzを同じ方法で導入します。本体と内部部品を一括で入れ替え、アカウント設定・ログイン情報は利用者領域に保持します。グローバルprefixの書込権限がない場合は、[ユーザー領域prefixの手順](docs/RELEASING.md)を使ってください。
 
-所有者によるnpm公開後の導入・更新コマンドは `npm install -g @ray-d3v/convomux@latest` になる予定です。現在すぐにレジストリから利用できるとの案内ではありません。公開名は package.json を正とします。
+所有者が npmアカウントを作成し、公開名・scope の権利を確認して公開を承認・実施した後は、`npm install -g <confirmed-package-name>@latest` で導入・更新できます。package.json の `@ray-d3v/convomux` は現在の候補名で、権利・登録・利用可能性は未確認です。公開リポジトリや MIT の採用は、npm公開の実施承認とは別です。
 
 | 内部部品 | 固定版 | 配布方式 |
 |---|---|---|
@@ -154,3 +154,9 @@ npm run package:smoke
 汎用tgzの生成はLinux CIで行います。Windowsの `npm pack` はUnix部品の実行権限を失うためprepackで拒否し、配布検証でもtgz内の権限を確認します。Windows開発環境ではbuild/checkを実行し、CIから取得したtgzを `npm run package:smoke -- PATH` で検証してください。
 
 既存のWindows/macOS/Linux × Node22/24テストを維持し、別ジョブで5環境 × Node22/24の同一tgzのネイティブ起動を確認します。未実行・失敗・実ログイン未確認は [検証記録](docs/VALIDATION.md) に区別します。公開手順・Trusted Publishing・所有者の残作業は [RELEASING.md](docs/RELEASING.md) を参照してください。`private:true` / `UNLICENSED` は所有者判断まで維持しています。
+
+## ライセンスと公開状態
+
+ConvoMux 本体は [MIT License](LICENSE) です（2026-10-25 所有者承認）。著作権表記 `Ray` は初期コミットの既存 author 名に基づきます。msteams、slk、同梱する依存の権利・ライセンスはそれぞれの [第三者表記](THIRD_PARTY_NOTICES.md) と vendor/licenses/ に従い、本体の MIT へ置き換えません。
+
+`private: true` は維持しています。npmアカウントは未作成、公開名・scope は未確定です。公開・tag・Release・merge・アカウント登録・権限設定はこの変更では行いません。[公開準備の残作業](docs/RELEASING.md) を参照してください。実保管庫、実ログイン・SSO/MFA、最小Windows runtime の未検証事項も引き続き残ります。

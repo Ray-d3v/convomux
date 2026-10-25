@@ -10,7 +10,7 @@
 - Do not call a bounded result complete. Keep source/account identity, fetched scope, paging limitations, and partial failures in the JSON contract. Increment schemaVersion for incompatible changes.
 - Keep backend calls sequential within an invocation: Teams refresh operations rewrite its profile. Do not introduce background sync or unbounded exports.
 - Configuration must stay credential-free and use atomic, lock-protected updates. Executable overrides are trusted local code, not remote configuration.
-- Keep README and SECURITY in sync with behavior. `private: true` and `UNLICENSED` are deliberate until the owner decides release/license policy.
+- Keep README and SECURITY in sync with behavior. The owner approved MIT for ConvoMux on 2026-10-25; preserve the root LICENSE and third-party notices. `private: true` remains deliberate until publication is separately authorized. The npm account is not yet created and the final npm name/scope is unconfirmed.
 - CI covers Windows/macOS/Linux and Node 22/24 with mock backends. This does not prove real account authentication works.
 
 ## Test audit and proportional proof
