@@ -2,7 +2,7 @@ import { lstat, mkdir, open, readFile, rename, unlink } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import { CmxError, fail, label, parseRef, record, source, type Account, type Config, type Source } from './model.js'
+import { CmxError, fail, label, parseRef, record, source, storedProfile, type Account, type Config, type Source } from './model.js'
 
 export function configPath(explicit?: string): string {
   if (explicit || process.env.CMX_CONFIG) return resolve(explicit ?? process.env.CMX_CONFIG!)
@@ -23,7 +23,8 @@ export function validateConfig(value: unknown): Config {
       const a = record(item)
       keys(a, ['source', 'name', 'profile', 'executable'])
       if (typeof a.source !== 'string' || typeof a.name !== 'string' || typeof a.profile !== 'string') return fail('CONFIG', 'Each account needs source, name and profile strings.')
-      const account: Account = { source: source(a.source), name: label(a.name), profile: label(a.profile) }
+      const service = source(a.source)
+      const account: Account = { source: service, name: label(a.name), profile: storedProfile(a.profile, service) }
       if (a.executable !== undefined) {
         if (typeof a.executable !== 'string' || !isAbsolute(a.executable) || /[\x00-\x1f]/u.test(a.executable)) return fail('CONFIG', 'executable must be an absolute local path.')
         account.executable = a.executable

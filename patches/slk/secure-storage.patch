@@ -1,0 +1,278 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index e1c3533..32a0479 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -1,6 +1,6 @@
+ [package]
+ name = "slk"
+-version = "0.2.0"
++version = "0.2.0+cmx.1"
+ edition = "2021"
+ description = "A Rust-based Slack CLI for humans and AI agents"
+ license = "MIT"
+@@ -37,7 +37,7 @@ tracing = "0.1"
+ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+ 
+ # Auth - Keyring
+-keyring = { version = "3", features = ["apple-native", "linux-native"] }
++keyring = { version = "=3.6.3", features = ["apple-native", "linux-native", "windows-native"] }
+ 
+ # Auth - Chromium cookie decryption
+ rusqlite = { version = "0.32", features = ["bundled"] }
+diff --git a/Cargo.lock b/Cargo.lock
+index f14c3d9..b542397 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -1269,10 +1269,12 @@ version = "3.6.3"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "eebcc3aff044e5944a8fbaf69eb277d11986064cba30c468730e8b9909fb551c"
+ dependencies = [
++ "byteorder",
+  "linux-keyutils",
+  "log",
+  "security-framework 2.11.1",
+  "security-framework 3.7.0",
++ "windows-sys 0.60.2",
+  "zeroize",
+ ]
+ 
+@@ -2194,7 +2196,7 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
+ 
+ [[package]]
+ name = "slk"
+-version = "0.2.0"
++version = "0.2.0+cmx.1"
+ dependencies = [
+  "aes",
+  "argon2",
+diff --git a/src/auth/keyring.rs b/src/auth/keyring.rs
+index e14a820..8b2ebf4 100644
+--- a/src/auth/keyring.rs
++++ b/src/auth/keyring.rs
+@@ -1,6 +1,5 @@
+ use crate::utils::SlkError;
+ use serde::{Deserialize, Serialize};
+-use tracing::debug;
+ 
+ const SERVICE_NAME: &str = "slk-cli";
+ 
+@@ -32,53 +31,36 @@ impl std::fmt::Debug for StoredCredential {
+ pub struct CredentialStore;
+ 
+ impl CredentialStore {
+-    /// Store a credential in the OS keyring, falling back to encrypted file.
+-    pub fn store_credential(
+-        workspace: &str,
+-        credential: &StoredCredential,
+-    ) -> Result<(), SlkError> {
+-        let json = serde_json::to_string(credential)?;
+-
+-        // Try OS keyring first
+-        match keyring::Entry::new(SERVICE_NAME, workspace) {
+-            Ok(entry) => match entry.set_password(&json) {
+-                Ok(()) => {
+-                    debug!(workspace, "Credential stored in OS keyring");
+-                    return Ok(());
+-                }
+-                Err(e) => {
+-                    debug!(error = %e, "Keyring storage failed, trying file fallback");
+-                }
+-            },
+-            Err(e) => {
+-                debug!(error = %e, "Keyring entry creation failed");
+-            }
++    /// Reject entry-local, process-local and volatile kernel stores before auth.
++    /// This capability query creates no credential and accesses no OS vault.
++    pub fn require_secure_storage() -> Result<(), SlkError> {
++        use keyring::credential::CredentialPersistence;
++        if matches!(keyring::default::default_credential_builder().persistence(), CredentialPersistence::UntilDelete) {
++            Ok(())
++        } else {
++            Err(SlkError::Auth("CMX_SECURE_STORAGE_UNSUPPORTED: persistent OS credential storage is required; no file fallback is permitted".into()))
+         }
++    }
+ 
+-        // Fallback: encrypted file
+-        Self::store_credential_file(workspace, &json)
++    /// Store only through the existing persistent OS keyring implementation.
++    pub fn store_credential(workspace: &str, credential: &StoredCredential) -> Result<(), SlkError> {
++        Self::require_secure_storage()?;
++        let json = serde_json::to_string(credential)?;
++        let entry = keyring::Entry::new(SERVICE_NAME, workspace)
++            .map_err(|_| SlkError::Auth("CMX_SECURE_STORAGE: OS credential store unavailable; no file fallback attempted".into()))?;
++        entry.set_password(&json)
++            .map_err(|_| SlkError::Auth("CMX_SECURE_STORAGE: OS credential save failed; no file fallback attempted".into()))
+     }
+ 
+-    /// Load a credential from OS keyring or encrypted file fallback.
++    /// Never read a legacy plaintext credential, including after NoEntry.
+     pub fn load_credential(workspace: &str) -> Result<StoredCredential, SlkError> {
+-        // Try OS keyring first
+-        match keyring::Entry::new(SERVICE_NAME, workspace) {
+-            Ok(entry) => match entry.get_password() {
+-                Ok(json) => {
+-                    let cred: StoredCredential = serde_json::from_str(&json)?;
+-                    return Ok(cred);
+-                }
+-                Err(e) => {
+-                    debug!(error = %e, "Keyring load failed, trying file fallback");
+-                }
+-            },
+-            Err(e) => {
+-                debug!(error = %e, "Keyring entry creation failed");
+-            }
+-        }
+-
+-        // Fallback: encrypted file
+-        Self::load_credential_file(workspace)
++        Self::require_secure_storage()?;
++        let entry = keyring::Entry::new(SERVICE_NAME, workspace)
++            .map_err(|_| SlkError::Auth("CMX_SECURE_STORAGE: OS credential store unavailable; no file fallback attempted".into()))?;
++        let json = entry.get_password()
++            .map_err(|_| SlkError::Auth("CMX_SECURE_STORAGE: OS credential load failed; no file fallback attempted".into()))?;
++        serde_json::from_str(&json)
++            .map_err(|_| SlkError::Auth("CMX_SECURE_STORAGE: invalid stored credential; no file fallback attempted".into()))
+     }
+ 
+     /// Delete a credential from all storage locations.
+@@ -107,38 +89,76 @@ impl CredentialStore {
+         Ok(dir.join(format!("cred_{workspace}.json")))
+     }
+ 
+-    fn store_credential_file(workspace: &str, json: &str) -> Result<(), SlkError> {
++    fn delete_credential_file(workspace: &str) -> Result<(), SlkError> {
+         let path = Self::credential_file_path(workspace)?;
+-        std::fs::write(&path, json)?;
+-
+-        // Set file permissions to 0600
+-        #[cfg(unix)]
+-        {
+-            use std::os::unix::fs::PermissionsExt;
+-            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
++        if path.exists() {
++            std::fs::remove_file(&path)?;
+         }
+-
+-        debug!(path = %path.display(), "Credential stored in file (keyring unavailable)");
+         Ok(())
+     }
++}
+ 
+-    fn load_credential_file(workspace: &str) -> Result<StoredCredential, SlkError> {
+-        let path = Self::credential_file_path(workspace)?;
+-        if !path.exists() {
+-            return Err(SlkError::Auth(format!(
+-                "No stored credentials for workspace '{workspace}'"
+-            )));
++#[cfg(test)]
++mod cmx_secure_tests {
++    use super::*;
++    use keyring::credential::{Credential, CredentialApi, CredentialBuilderApi, CredentialPersistence};
++    use std::sync::{Arc, Mutex, atomic::{AtomicUsize, Ordering}};
++
++    #[derive(Debug)]
++    struct SyntheticBuilder { mode: Arc<AtomicUsize>, calls: Arc<Mutex<Vec<String>>> }
++    impl CredentialBuilderApi for SyntheticBuilder {
++        fn build(&self, _target: Option<&str>, _service: &str, user: &str) -> keyring::Result<Box<Credential>> {
++            self.calls.lock().unwrap().push(user.to_string());
++            if self.mode.load(Ordering::SeqCst) == 1 { return Err(keyring::Error::NoEntry); }
++            let entry = keyring::mock::MockCredential::default();
++            if self.mode.load(Ordering::SeqCst) == 2 { entry.set_error(keyring::Error::NoEntry); }
++            else if user == "active-synthetic" { entry.set_password(&synthetic_json()).unwrap(); }
++            else if user == "invalid-synthetic" { entry.set_password("{").unwrap(); }
++            Ok(Box::new(entry))
+         }
+-        let json = std::fs::read_to_string(&path)?;
+-        let cred: StoredCredential = serde_json::from_str(&json)?;
+-        Ok(cred)
++        fn as_any(&self) -> &dyn std::any::Any { self }
++    }
++    fn synthetic_json() -> String {
++        serde_json::json!({"token":"synthetic-only","cookie":null,"token_type":"bot","team_id":null,"team_name":null,"user_id":null,"created_at":"2000-01-01T00:00:00Z"}).to_string()
+     }
+ 
+-    fn delete_credential_file(workspace: &str) -> Result<(), SlkError> {
+-        let path = Self::credential_file_path(workspace)?;
+-        if path.exists() {
+-            std::fs::remove_file(&path)?;
++    // One serial test owns the process-global keyring mock and synthetic home.
++    // No native credential entry is ever created, read, written or removed.
++    #[test]
++    fn cmx_secure_storage_and_requested_profile_fail_closed() {
++        let directory = tempfile::tempdir().unwrap();
++        std::env::set_var("SLK_CONFIG_DIR", directory.path());
++        for key in ["SLK_TOKEN", "SLK_COOKIE", "SLK_WORKSPACE"] { std::env::remove_var(key); }
++        let calls = Arc::new(Mutex::new(Vec::new()));
++        let mode = Arc::new(AtomicUsize::new(0));
++        keyring::set_default_credential_builder(Box::new(SyntheticBuilder { mode: mode.clone(), calls: calls.clone() }));
++        let persistent = matches!(keyring::default::default_credential_builder().persistence(), CredentialPersistence::UntilDelete);
++        assert_eq!(persistent, cfg!(any(target_os = "windows", target_os = "macos")));
++        let legacy = directory.path().join("cred_requested-synthetic.json");
++        std::fs::write(&legacy, synthetic_json()).unwrap();
++        std::fs::write(directory.path().join("profiles.toml"), "active = \"active-synthetic\"\nworkspaces = {}\n").unwrap();
++        assert_eq!(crate::config::profiles::ProfileStore::load().unwrap().active.as_deref(), Some("active-synthetic"));
++        let credential: StoredCredential = serde_json::from_str(&synthetic_json()).unwrap();
++        for value in [1, 2] {
++            mode.store(value, Ordering::SeqCst);
++            assert!(CredentialStore::store_credential("write-synthetic", &credential).is_err());
++            assert!(!directory.path().join("cred_write-synthetic.json").exists());
+         }
+-        Ok(())
++        mode.store(0, Ordering::SeqCst);
++        if persistent {
++            assert!(CredentialStore::store_credential("write-success-synthetic", &credential).is_ok());
++            assert!(!directory.path().join("cred_write-success-synthetic.json").exists());
++            assert!(matches!(crate::auth::resolve_credentials(None, None, None), Ok(crate::client::Credentials::BearerOnly { token }) if token == "synthetic-only"));
++        } else {
++            assert!(CredentialStore::require_secure_storage().unwrap_err().to_string().contains("CMX_SECURE_STORAGE_UNSUPPORTED"));
++        }
++        assert!(CredentialStore::load_credential("requested-synthetic").is_err());
++        assert!(CredentialStore::load_credential("invalid-synthetic").is_err());
++        calls.lock().unwrap().clear();
++        let error = crate::auth::resolve_credentials(None, None, Some("requested-synthetic")).unwrap_err();
++        assert!(error.to_string().contains(if persistent { "CMX_SECURE_PROFILE_UNAVAILABLE" } else { "CMX_SECURE_STORAGE_UNSUPPORTED" }));
++        let requested = calls.lock().unwrap().clone();
++        assert_eq!(requested, if persistent { vec!["requested-synthetic".to_string()] } else { vec![] });
++        assert_eq!(std::fs::read_to_string(&legacy).unwrap(), synthetic_json());
+     }
+ }
+diff --git a/src/auth/mod.rs b/src/auth/mod.rs
+index 400400c..7c43423 100644
+--- a/src/auth/mod.rs
++++ b/src/auth/mod.rs
+@@ -20,6 +20,7 @@ pub fn resolve_credentials(
+     cookie_flag: Option<&str>,
+     workspace: Option<&str>,
+ ) -> Result<Credentials, SlkError> {
++    keyring::CredentialStore::require_secure_storage()?;
+     // 1. Env vars
+     if let Ok(token) = std::env::var("SLK_TOKEN") {
+         let cookie = std::env::var("SLK_COOKIE").ok();
+@@ -37,12 +38,9 @@ pub fn resolve_credentials(
+         .or_else(|| std::env::var("SLK_WORKSPACE").ok());
+ 
+     if let Some(ws) = &workspace {
+-        if let Ok(stored) = keyring::CredentialStore::load_credential(ws) {
+-            return Ok(Credentials::from_token(
+-                &stored.token,
+-                stored.cookie.as_deref(),
+-            ));
+-        }
++        let stored = keyring::CredentialStore::load_credential(ws)
++            .map_err(|_| SlkError::Auth("CMX_SECURE_PROFILE_UNAVAILABLE: requested workspace could not be loaded; active-profile fallback is forbidden".into()))?;
++        return Ok(Credentials::from_token(&stored.token, stored.cookie.as_deref()));
+     }
+ 
+     // Try active workspace from profiles
+diff --git a/src/cli/auth.rs b/src/cli/auth.rs
+index a850e08..cee886b 100644
+--- a/src/cli/auth.rs
++++ b/src/cli/auth.rs
+@@ -121,6 +121,7 @@ pub enum AuthCommand {
+ }
+ 
+ pub async fn handle(args: AuthArgs, output_config: &OutputConfig) -> Result<(), SlkError> {
++    CredentialStore::require_secure_storage()?;
+     match args.command {
+         AuthCommand::Extract {
+             source,
